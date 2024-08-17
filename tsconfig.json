@@ -1,9 +1,14 @@
 {
   "compilerOptions": {
-    "module": "node16",
+    "module": "commonjs",
     "lib": ["dom", "es2015"],
     "types": [],
+    "moduleResolution": "node",
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "axios": ["."]
+    }
   }
 }
