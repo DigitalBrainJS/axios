@@ -3,6 +3,7 @@ import axios = require('axios');
 const config: axios.AxiosRequestConfig = {
   url: '/user',
   method: 'get',
+  allowAbsoluteUrls: false,
   baseURL: 'https://api.example.com/',
   transformRequest: (data: any) => '{"foo":"bar"}',
   transformResponse: [
@@ -478,7 +479,7 @@ for (const [header, value] of headers) {
   headers.get('x');
 })();
 
-// AxiosHeaders instance assigment
+// AxiosHeaders instance assignment
 
 {
   const requestInterceptorId: number = axios.interceptors.request.use(
