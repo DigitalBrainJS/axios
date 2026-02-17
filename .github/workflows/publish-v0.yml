@@ -1,9 +1,6 @@
 name: Publish package to NPM (v0.x)
 
 on:
-  push:
-    branches:
-      - v0.x
   workflow_dispatch:
     inputs:
       type:
@@ -62,7 +59,7 @@ jobs:
       - name: Build project
         run: npm run build
       - name: Publish to NPM
-        run: npm publish --provenance --access public
+        run: npm publish --tag=legacy --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Commit and push changes
