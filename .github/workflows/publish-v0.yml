@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Bump version with NPM version
-        run: npm version ${{ replace(github.ref_name, 'v', '') }} --no-git-tag-version
+        run: npm version ${{ github.ref_name }} --no-git-tag-version
       - name: Build project
         run: npm run build
       - name: Publish to NPM
