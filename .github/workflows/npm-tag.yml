@@ -1,0 +1,47 @@
+name: Add npm dist-tag to axios version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 1.13.6)"
+        required: true
+      tag:
+        description: "Tag name (e.g. latest, safe, legacy)"
+        required: true
+        default: "latest"
+      confirm:
+        description: "Type YES to confirm"
+        required: true
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "YES" ]; then
+            echo "❌ Confirmation failed"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Show input
+        run: |
+          echo "Version: ${{ github.event.inputs.version }}"
+          echo "Tag: ${{ github.event.inputs.tag }}"
+
+      - name: Add dist-tag
+        run: |
+          npm dist-tag add axios@${{ github.event.inputs.version }} ${{ github.event.inputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
