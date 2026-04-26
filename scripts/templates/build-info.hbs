@@ -1,12 +1,13 @@
 {{#if stat}}
-  ### Build info (v{{version}})
+  ### Bundle Impact Report 📈
 
-  Client bundles:
-{{#each stat}}
-- {{ name }} ({{ path }})
-- **[ this ]** - {{ filesize size }} (**{{ filesize gzip }}** gzipped, {{percent compressed}})
+  {{#if (eq impact 0)}}🟢 No Impact{{/if}}{{#if (eq impact 1)}}🟡 Low Impact{{/if}}{{#if (eq impact 2)}}🟠 Medium Impact{{/if}}{{#if (eq impact 3)}}🔴 High Impact{{/if}}
+
+  {{#each stat}}
+- {{ @key }} ({{ this.filename }}) **{{ this.delta.gzip }}** gzipped
+  - **[{{or this.tag this.branch}}]** - **{{ filesize gzip }}** ({{ filesize size }}, {{percent compressed}})
     {{#each history}}
-- **[{{ tag }}]** - {{filesize size}} (**{{ filesize gzip }}** gzipped, {{percent compressed}})
+  - [{{ or this.tag this.branch }}] - {{ filesize gzip }} ({{ filesize size }}, {{percent compressed}})
     {{/each}}
   {{/each}}
 {{/if}}
