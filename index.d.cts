@@ -495,7 +495,8 @@ declare namespace axios {
     maxRate?: number | [MaxUploadRate, MaxDownloadRate];
     beforeRedirect?: (
       options: Record<string, any>,
-      responseDetails: { headers: Record<string, string>; statusCode: HttpStatusCode }
+      responseDetails: { headers: Record<string, string>; statusCode: HttpStatusCode },
+      requestDetails: { headers: Record<string, string>; url: string; method: string },
     ) => void;
     socketPath?: string | null;
     allowedSocketPaths?: string | string[] | null;

@@ -394,7 +394,12 @@ export interface AxiosRequestConfig<D = any> {
     responseDetails: {
       headers: Record<string, string>;
       statusCode: HttpStatusCode;
-    }
+    },
+    requestDetails: {
+      headers: Record<string, string>;
+      url: string;
+      method: string;
+    },
   ) => void;
   socketPath?: string | null;
   allowedSocketPaths?: string | string[] | null;
