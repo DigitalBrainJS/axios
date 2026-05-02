@@ -495,8 +495,16 @@ axios
 // Want to use async/await? Add the `async` keyword to your outer function/method.
 async function getUser() {
   try {
-    const response = await axios.get('/user?ID=12345');
-    console.log(response);
+// Example: GET request with query parameters
+const response = await axios.get('/user', {
+  params: {
+    ID: 12345
+  }
+});
+
+// Using the `params` option improves readability and automatically formats query strings
+
+console.log(response);
   } catch (error) {
     console.error(error);
   }
