@@ -64,10 +64,10 @@ jobs:
 
       - name: Build stats script from BASE
         run: |
-          npx esbuild scripts/build-stat.js \
+          npx esbuild scripts/bundle-stat.js \
           --bundle \
           --platform=node \
-          --format=esm \
+          --format=cjs \
           --outfile=${{ runner.temp }}/build-stat.js
 
       # Restore cache for all commits (BASE, HEAD) to speed up stats collection
