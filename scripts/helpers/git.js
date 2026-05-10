@@ -1,0 +1,58 @@
+import {run} from "./helpers.js";
+
+
+export const getCommitInfo = async (ref = "HEAD~1") => {
+    // SHA + дата одним викликом
+    const [sha, date, short] = await run(
+      `git show -s --format=%H%n%cI%h ${ref}`,
+      true
+    );
+
+    let branch = null;
+    let tags = [];
+
+
+    if (ref === "HEAD") {
+      branch = await run("git branch --show-current") || null;
+    } else {
+      branch = await run(`git branch --contains ${sha}  --format="%(refname:short)`, true);
+    }
+
+    try {
+      tags = await run(`git tag --points-at ${sha}`, true);
+    } catch {}
+
+    return {
+      sha,
+      date,
+      short,
+      branch,
+      tags
+    };
+  }
+
+export const getLatestTags = async (limit = 1, pattern= 'v*') => {
+  const tags = await run(
+    `git for-each-ref --count ${limit} refs/tags/${pattern} --merged=HEAD --sort=-v:refname --format="%(refname:short)|%(*objectname)|%(*committerdate:iso8601)|%(objectname:short)"`,
+    true
+  );
+
+  return tags.map(line => {
+      const [tag, sha, date, short] = line.split('|');
+
+      return {
+        tag,
+        sha,
+        date: new Date(date),
+        short
+      };
+    });
+};
+
+export const checkout = async (ref) => {
+  await run(`git checkout ${ref}`);
+}
+
+export const getCommits = async (from, to = 'HEAD') => {
+  return run(`git rev-list ${from}..${to}`, true);
+}
