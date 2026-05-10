@@ -1,0 +1,126 @@
+name: Bundle size analyzer
+
+on:
+  workflow_run:
+    workflows: ["Continuous integration"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  bundle-size:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+
+    runs-on: ubuntu-latest
+
+    env:
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      BASE_REF_ARG: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
+
+    steps:
+      - name: Checkout PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Ensure axios-stats dir exists
+        run: mkdir -p ${{ runner.temp }}/axios-stats
+
+      - name: Get first commit in PR range
+        id: first_commit
+        run: |
+          FIRST=$(git rev-list ${{ github.event.workflow_run.pull_requests[0].base.sha }}..HEAD --reverse | head -n 1)
+        
+          if [ -z "$FIRST" ]; then
+            FIRST="${{ github.event.workflow_run.head_sha }}"
+          fi
+        
+          echo "sha=$FIRST" >> $GITHUB_OUTPUT
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Checkout to BASE
+        run: |
+          git reset --hard
+          git clean -fd
+          git checkout ${{ github.event.workflow_run.pull_requests[0].base.sha }}
+
+      - name: Install BASE dependencies
+        run: npm ci --ignore-scripts
+
+      # post install hook is required
+      #- name: Install esbuild
+      #  run: npm install esbuild
+
+      - name: Build stats script from BASE
+        run: |
+          npx esbuild scripts/bundle-stat.js \
+          --bundle \
+          --platform=node \
+          --format=esm \
+          --outfile=${{ runner.temp }}/build-stat.js
+
+      # Restore cache for all commits (BASE, HEAD) to speed up stats collection
+      - name: Restore stats cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/axios-stats
+          key: stats-v1-${{ github.repository }}-${{ steps.first_commit.outputs.sha }}-${{ github.event.workflow_run.head_sha }}
+          restore-keys: |
+            stats-v1-${{ github.repository }}-${{ steps.first_commit.outputs.sha }}
+            stats-v1-${{ github.repository }}
+
+      - name: Check BASE snapshot
+        id: base_snapshot
+        run: |
+          FILE="${{ runner.temp }}/axios-stats/${{ github.event.workflow_run.pull_requests[0].base.sha }}.json"
+      
+          if [ -f "$FILE" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi      
+
+      - name: Build axios
+        if: steps.base_snapshot.outputs.exists != 'true'
+        run: npm run build
+
+      - name: Collect BASE stats
+        if: steps.base_snapshot.outputs.exists != 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          node ${{ runner.temp }}/build-stat.js snapshot    
+
+      - name: Checkout back to HEAD
+        run: |
+          git reset --hard
+          git clean -fd
+          git checkout ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install HEAD dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build axios
+        run: npm run build
+
+      - name: Collect HEAD stats
+        working-directory: ${{ github.workspace }}
+        run: |
+          node ${{ runner.temp }}/build-stat.js snapshot    
+
+      - name: Generate & Post report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ${{ github.workspace }}
+        id: report
+        run: |
+          node ${{ runner.temp }}/build-stat.js report --releases 3 --base "$BASE_REF_ARG"

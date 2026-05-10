@@ -1,8 +1,6 @@
 import axios from '../../index.js';
 
-const {GITHUB_TOKEN} = process.env;
-
-GITHUB_TOKEN ? console.log(`[GITHUB_TOKEN OK]`) : console.warn(`[GITHUB_TOKEN is not defined]`);
+const {GITHUB_TOKEN, GITHUB_REPOSITORY , GITHUB_REPOSITORY_OWNER} = process.env;
 
 class GithubAPI {
   constructor(owner, repo) {
@@ -30,37 +28,73 @@ class GithubAPI {
     })).data;
   }
 
+  async getComment(id) {
+    return (await this.axios.get(`/issues/comments/${id}`)).data;
+  }
+
   async addComment(issue, body) {
     return (await this.axios.post(`/issues/${issue}/comments`, {body})).data;
+  }
+
+  async deleteComment(id) {
+    return (await this.axios.delete(`/issues/comments/${id}`)).data;
   }
 
   async updateComment(id, body) {
     return (await this.axios.patch(`/issues/comments/${id}`, {body})).data;
   }
 
-  async findCommentAndUpdate(issue, body, find){
+  async findCommentAndUpdate(issue, body, find, removeEmpty = true) {
     const comments = await this.getComments(issue);
+
+    body = String(body).trim();
 
     const existing = find && comments.find(find);
 
     if (existing) {
+      if (removeEmpty && !body) {
+        return this.deleteComment(existing.id);
+      }
       return this.updateComment(existing.id, body);
     }
 
     return this.addComment(issue, body);
   }
 
-  async getComment(id) {
-    return (await this.axios.get(`/issues/comments/${id}`)).data;
-  }
+  async uploadAttachment({
+                           buffer,
+                           filename = 'image.png',
+                           issueNumber
+                         }) {
+    if (!buffer || !issueNumber) {
+      throw new Error('Missing required params');
+    }
 
-  async appendLabels(issue, labels) {
-    return (await this.axios.post(`/issues/${issue}/labels`, {labels})).data;
-  }
+    const url = `/issues/${issueNumber}/attachments`;
 
-  async deleteLabel(issue, label) {
-    return (await this.axios.delete(`/issues/${issue}/labels/${label}`)).data;
+    const form = new FormData();
+    form.append('file', new Blob([buffer], { type: 'image/png' }), {
+      filename,
+      contentType: 'image/png'
+    });
+
+    try {
+      const res = await this.axios.post(url, form, {
+        headers: {
+          Accept: 'application/vnd.github+json'
+        }
+      });
+
+      return res.data.url; // CDN URL
+    } catch (err) {
+      if (err.response) {
+        throw new Error(
+          `Upload failed[${err.response.status}] ${err.config.url} ${JSON.stringify(err.response.data)}`
+        );
+      }
+      throw err;
+    }
   }
 }
 
-export default new GithubAPI('DigitalBrainJS', 'axios');
+export default new GithubAPI(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY);

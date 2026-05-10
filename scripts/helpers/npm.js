@@ -3,7 +3,7 @@ import tar from "tar-stream";
 import zlib from "zlib";
 import {Readable} from "stream";
 
-export async function getFilesFromNPM(pkg) {
+export async function getFilesFromNPM(pkg, filter) {
   const tgzData = await pacote.tarball(pkg);
   const files = {};
 
@@ -18,15 +18,19 @@ export async function getFilesFromNPM(pkg) {
       });
 
       stream.on("end", () => {
-        const content = Buffer.concat(buffers);
+        const filepath = header.name.replace(/^package\//, '')
 
-        const gzipped = zlib.gzipSync(content);
+        if (!filter || filter(filepath)) {
+          const content = Buffer.concat(buffers);
 
-        files[header.name.replace(/^package\//, '')] = {
-          gzip: gzipped.length,
-          compressed: header.size ? gzipped.length / header.size : 1,
-          ...header
-        };
+          const gzipped = zlib.gzipSync(content);
+
+          files[filepath] = {
+            gzip: gzipped.length,
+            compressed: header.size ? gzipped.length / header.size : 1,
+            ...header
+          };
+        }
 
         next();
       });
