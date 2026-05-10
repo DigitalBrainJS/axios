@@ -41,14 +41,13 @@ const getFileStats = async (filename) => {
 }
 
 const snapshot = async (dir = distDir) => {
-  const {sha, tag, branch, short, date} = await getCommitInfo();
+  const {sha, tag, short, date} = await getCommitInfo();
 
   const files = await listFiles(dir);
 
   const stat = {
     sha,
     tag,
-    branch,
     date,
     short,
     stats: {}
@@ -156,7 +155,6 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
           short: snapshot.short,
           tag: snapshot.tag,
           date: snapshot.date,
-          branch: snapshot.branch || null,
           ...stat
         }
       }
