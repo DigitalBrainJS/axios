@@ -258,32 +258,27 @@ const clearStats = async (snapshots) => {
     }
     case 'report': {
       const [...files] = rest;
-      try {
-        const template = await fs.readFile(
-          path.join(import.meta.dirname, './templates/build-stat.hbs')
+
+      const template = await fs.readFile('./scripts/templates/build-stat.hbs');
+
+      const stats = await report(files, {
+        releases,
+        base
+      });
+
+      const reportText = Handlebars.compile(String(template))(stats);
+
+      if (pr) {
+        const fullMarker = `<!-- ${marker} -->`;
+
+        await github.findCommentAndUpdate(
+          pr,
+          reportText ? `${fullMarker}\r\n${reportText}` : '',
+          ({body}) => body.trim().startsWith(fullMarker)
         );
-
-        const stats = await report(files, {
-          releases,
-          base
-        });
-
-        const reportText = Handlebars.compile(String(template))(stats);
-
-        if (pr) {
-          const fullMarker = `<!-- ${marker} -->`;
-
-          await github.findCommentAndUpdate(
-            pr,
-            reportText ? `${fullMarker}\r\n${reportText}` : '',
-            ({body}) => body.trim().startsWith(fullMarker)
-          );
-        }
-
-        console.log(reportText);
-      } catch(err) {
-        console.error('Failed to generate report', err);
       }
+
+      console.log(reportText);
 
       break;
     }
