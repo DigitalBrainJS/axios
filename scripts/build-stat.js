@@ -40,8 +40,19 @@ const getFileStats = async (filename) => {
   }
 }
 
-const snapshot = async (dir = distDir) => {
+const snapshot = async (dir = distDir, skipIfExists = true) => {
   const {sha, tag, short, date} = await getCommitInfo();
+
+  if (skipIfExists) {
+    try {
+      await fs.access(path.join(statDir, `${sha}.json`), fs.constants.F_OK);
+      return;
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
 
   const files = await listFiles(dir);
 
@@ -235,21 +246,13 @@ const clearStats = async (snapshots) => {
   switch (action) {
     case 'snapshot':
     case 'snap': {
-      if (skipIfExists) {
-        const sha = (await getCommitInfo()).sha;
+      const stat = await snapshot(dir, skipIfExists);
 
-        try {
-          await fs.access(path.join(statDir, `${sha}.json`), fs.constants.F_OK);
-          console.log(`Snapshot for ${sha} already exists, skipping...`);
-          return;
-        } catch (err) {
-          if (err.code !== 'ENOENT') {
-            throw err;
-          }
-        }
+      if (stat) {
+        console.log(`Snapshot for ${stat.sha} (${stat.tag || '---'}) saved successfully!`);
+      } else {
+        console.log('Snapshot already exists, skipping...');
       }
-
-      await snapshot(dir);
 
       break;
     }

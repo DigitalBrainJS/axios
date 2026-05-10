@@ -1,8 +1,7 @@
 import {run} from "./helpers.js";
 
 
-export const getCommitInfo = async (ref = "HEAD~1") => {
-    // SHA + дата одним викликом
+export const getCommitInfo = async (ref = "HEAD") => {
     const [sha, date, short] = await run(
       `git show -s --format=%H%n%cI%h ${ref}`,
       true
