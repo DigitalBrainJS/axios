@@ -19,12 +19,31 @@ const qs = require('qs');
 axios.post('/foo', qs.stringify({ bar: 123 }));
 ```
 
+For full control over headers and method, pass `qs.stringify` output as the request `data` and set `Content-Type` explicitly:
+
+```js
+import qs from 'qs';
+
+const data = { bar: 123 };
+const options = {
+  method: 'POST',
+  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  data: qs.stringify(data),
+  url: '/foo',
+};
+axios(options);
+```
+
 In very old versions of Node.js, you can use the built-in `querystring` module that ships with Node.js. Note that this module has been deprecated in Node.js v16 — prefer `URLSearchParams` or `qs` for new code.
 
 ```js
 const querystring = require('querystring');
 axios.post('https://something.com/', querystring.stringify({ foo: 'bar' }));
 ```
+
+::: tip Prefer `qs` for nested objects
+The `qs` library is preferable if you need to stringify nested objects, as the `querystring` method has [known issues](https://github.com/nodejs/node-v0.x-archive/issues/1665) with that use case.
+:::
 
 ## Automatic serialization to URLSearchParams <Badge type="tip" text="New" />
 
@@ -63,6 +82,19 @@ The `data` object will be automatically serialized to `URLSearchParams` and sent
 ```
 
 If your backend body-parser (like `body-parser` of `express.js`) supports nested objects decoding, you will get the same object on the server-side automatically
+
+## Depth limit for params serialization
+
+When axios serializes a `params` object via `AxiosURLSearchParams`, the same recursive walker used by the FormData serializer is called. A `maxDepth` option (default `100`) limits how deeply it will recurse. Payloads exceeding the limit throw an `AxiosError` with `code: 'ERR_FORM_DATA_DEPTH_EXCEEDED'` instead of overflowing the call stack.
+
+```js
+// Raise the limit if your params object legitimately nests deeper than 100 levels:
+axios.get('/api', { params: deepObject, paramsSerializer: { maxDepth: 200 } });
+```
+
+::: warning Security note
+Only raise `maxDepth` if your schema genuinely requires it. The default of 100 protects server-side code that forwards client-controlled data to axios as `params` from DoS attacks via deeply nested objects.
+:::
 
 ```js
 var app = express();

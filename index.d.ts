@@ -3,7 +3,7 @@ type StringLiteralsOrString<Literals extends string> = Literals | (string & {});
 
 export type AxiosHeaderValue = AxiosHeaders | string | string[] | number | boolean | null;
 
-interface RawAxiosHeaders {
+export interface RawAxiosHeaders {
   [key: string]: AxiosHeaderValue;
 }
 
@@ -243,7 +243,8 @@ type UppercaseMethod =
   | 'PATCH'
   | 'PURGE'
   | 'LINK'
-  | 'UNLINK';
+  | 'UNLINK'
+  | 'QUERY';
 
 export type Method = (UppercaseMethod | Lowercase<UppercaseMethod>) & {};
 
@@ -363,7 +364,7 @@ export interface LookupAddressEntry {
 export type LookupAddress = string | LookupAddressEntry;
 
 export interface AxiosRequestConfig<D = any> {
-  url?: string;
+  url?: string | URL;
   method?: StringLiteralsOrString<Method>;
   baseURL?: string;
   allowAbsoluteUrls?: boolean;
@@ -394,9 +395,15 @@ export interface AxiosRequestConfig<D = any> {
     responseDetails: {
       headers: Record<string, string>;
       statusCode: HttpStatusCode;
-    }
+    },
+    requestDetails: {
+      headers: Record<string, string>;
+      url: string;
+      method: string;
+    },
   ) => void;
   socketPath?: string | null;
+  allowedSocketPaths?: string | string[] | null;
   transport?: any;
   httpAgent?: any;
   httpsAgent?: any;
@@ -434,12 +441,14 @@ export interface AxiosRequestConfig<D = any> {
         [address: LookupAddressEntry | LookupAddressEntry[], family?: AddressFamily] | LookupAddress
       >);
   withXSRFToken?: boolean | ((config: InternalAxiosRequestConfig) => boolean | undefined);
-  parseReviver?: (this: any, key: string, value: any) => any;
+  parseReviver?: (this: any, key: string, value: any, context?: { source?: string }) => any;
   fetchOptions?: Omit<RequestInit, 'body' | 'headers' | 'method' | 'signal'> | Record<string, any>;
   httpVersion?: 1 | 2;
   http2Options?: Record<string, any> & {
     sessionTimeout?: number;
   };
+  formDataHeaderPolicy?: 'legacy' | 'content-only';
+  redact?: string[];
 }
 
 // Alias
@@ -461,6 +470,7 @@ export interface HeadersDefaults {
   purge?: RawAxiosRequestHeaders;
   link?: RawAxiosRequestHeaders;
   unlink?: RawAxiosRequestHeaders;
+  query?: RawAxiosRequestHeaders;
 }
 
 export interface AxiosDefaults<D = any> extends Omit<AxiosRequestConfig<D>, 'headers'> {
@@ -516,7 +526,9 @@ export class AxiosError<T = unknown, D = any> extends Error {
   static readonly ERR_NOT_SUPPORT = 'ERR_NOT_SUPPORT';
   static readonly ERR_INVALID_URL = 'ERR_INVALID_URL';
   static readonly ERR_CANCELED = 'ERR_CANCELED';
+  static readonly ERR_FORM_DATA_DEPTH_EXCEEDED = 'ERR_FORM_DATA_DEPTH_EXCEEDED';
   static readonly ECONNABORTED = 'ECONNABORTED';
+  static readonly ECONNREFUSED = 'ECONNREFUSED';
   static readonly ETIMEDOUT = 'ETIMEDOUT';
 }
 
@@ -597,48 +609,53 @@ export class Axios {
   getUri(config?: AxiosRequestConfig): string;
   request<T = any, R = AxiosResponse<T>, D = any>(config: AxiosRequestConfig<D>): Promise<R>;
   get<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   delete<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   head<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   options<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   post<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   put<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   patch<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   postForm<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   putForm<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
   patchForm<T = any, R = AxiosResponse<T>, D = any>(
-    url: string,
+    url: string | URL,
+    data?: D,
+    config?: AxiosRequestConfig<D>
+  ): Promise<R>;
+  query<T = any, R = AxiosResponse<T>, D = any>(
+    url: string | URL,
     data?: D,
     config?: AxiosRequestConfig<D>
   ): Promise<R>;
@@ -646,7 +663,7 @@ export class Axios {
 
 export interface AxiosInstance extends Axios {
   <T = any, R = AxiosResponse<T>, D = any>(config: AxiosRequestConfig<D>): Promise<R>;
-  <T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R>;
+  <T = any, R = AxiosResponse<T>, D = any>(url: string | URL, config?: AxiosRequestConfig<D>): Promise<R>;
 
   create(config?: CreateAxiosDefaults): AxiosInstance;
   defaults: Omit<AxiosDefaults, 'headers'> & {
@@ -690,6 +707,8 @@ export function mergeConfig<D = any>(
   config1: AxiosRequestConfig<D>,
   config2: AxiosRequestConfig<D>
 ): AxiosRequestConfig<D>;
+
+export function create(config?: CreateAxiosDefaults): AxiosInstance;
 
 export interface AxiosStatic extends AxiosInstance {
   Cancel: CancelStatic;

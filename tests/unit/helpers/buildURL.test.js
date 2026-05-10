@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import buildURL from '../../../lib/helpers/buildURL.js';
+import buildURL, { encode } from '../../../lib/helpers/buildURL.js';
 
 describe('helpers::buildURL', () => {
   it('should support null params', () => {
@@ -101,6 +101,51 @@ describe('helpers::buildURL', () => {
     expect(buildURL('/foo', new URLSearchParams('bar=baz'))).toEqual('/foo?bar=baz');
   });
 
+  it('should support URL object without params', () => {
+    const url = new URL('http://example.com/foo?a=1');
+    expect(buildURL(url)).toEqual('http://example.com/foo?a=1');
+  });
+
+  it('should support URL object with params', () => {
+    const url = new URL('http://example.com/foo?a=1');
+    expect(buildURL(url, { b: 2 })).toEqual('http://example.com/foo?a=1&b=2');
+  });
+
+  it('should support URL-like object with params', () => {
+    const url = {
+      toString() {
+        return 'http://example.com/foo?a=1';
+      },
+    };
+
+    expect(buildURL(url, { b: 2 })).toEqual('http://example.com/foo?a=1&b=2');
+  });
+
+  it('should not require global URL to be a constructor', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'URL');
+    const url = {
+      toString() {
+        return 'http://example.com/foo?a=1';
+      },
+    };
+
+    Object.defineProperty(globalThis, 'URL', {
+      configurable: true,
+      writable: true,
+      value: {},
+    });
+
+    try {
+      expect(buildURL(url, { b: 2 })).toEqual('http://example.com/foo?a=1&b=2');
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, 'URL', descriptor);
+      } else {
+        delete globalThis.URL;
+      }
+    }
+  });
+
   it('should support custom serialize function', () => {
     const params = {
       x: 1,
@@ -122,5 +167,41 @@ describe('helpers::buildURL', () => {
     };
 
     expect(buildURL('/foo', params, customSerializer)).toEqual('/foo?rendered');
+  });
+});
+
+describe('helpers::encode', () => {
+  it('should be exported as a named export', () => {
+    expect(typeof encode).toBe('function');
+  });
+
+  it('should leave plain ASCII unchanged', () => {
+    expect(encode('foo')).toEqual('foo');
+  });
+
+  it('should preserve `:` rather than percent-encoding it', () => {
+    expect(encode(':')).toEqual(':');
+  });
+
+  it('should preserve `$` rather than percent-encoding it', () => {
+    expect(encode('$')).toEqual('$');
+  });
+
+  it('should preserve `,` rather than percent-encoding it', () => {
+    expect(encode(',')).toEqual(',');
+  });
+
+  it('should encode space as `+` (form-style) rather than `%20`', () => {
+    expect(encode(' ')).toEqual('+');
+  });
+
+  it('should still percent-encode characters outside the preserved set', () => {
+    expect(encode('a/b')).toEqual('a%2Fb');
+    expect(encode('a&b')).toEqual('a%26b');
+    expect(encode('a=b')).toEqual('a%3Db');
+  });
+
+  it('should apply all substitutions together', () => {
+    expect(encode('a:b$c,d e')).toEqual('a:b$c,d+e');
   });
 });
