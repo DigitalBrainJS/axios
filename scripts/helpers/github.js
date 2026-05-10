@@ -60,41 +60,6 @@ class GithubAPI {
 
     return this.addComment(issue, body);
   }
-
-  async uploadAttachment({
-                           buffer,
-                           filename = 'image.png',
-                           issueNumber
-                         }) {
-    if (!buffer || !issueNumber) {
-      throw new Error('Missing required params');
-    }
-
-    const url = `/issues/${issueNumber}/attachments`;
-
-    const form = new FormData();
-    form.append('file', new Blob([buffer], { type: 'image/png' }), {
-      filename,
-      contentType: 'image/png'
-    });
-
-    try {
-      const res = await this.axios.post(url, form, {
-        headers: {
-          Accept: 'application/vnd.github+json'
-        }
-      });
-
-      return res.data.url; // CDN URL
-    } catch (err) {
-      if (err.response) {
-        throw new Error(
-          `Upload failed[${err.response.status}] ${err.config.url} ${JSON.stringify(err.response.data)}`
-        );
-      }
-      throw err;
-    }
-  }
 }
 
 export default new GithubAPI(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY);
