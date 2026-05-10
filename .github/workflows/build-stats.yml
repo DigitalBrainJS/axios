@@ -64,7 +64,7 @@ jobs:
 
       - name: Build stats script from BASE
         run: |
-          npx esbuild scripts/bundle-stat.js \
+          npx esbuild scripts/build-stat.js \
           --bundle \
           --platform=node \
           --format=esm \
