@@ -8,15 +8,7 @@ export const getCommitInfo = async (ref = "HEAD~1") => {
       true
     );
 
-    let branch = null;
     let tags = [];
-
-
-    if (ref === "HEAD") {
-      branch = await run("git branch --show-current") || null;
-    } else {
-      branch = await run(`git branch --contains ${sha}  --format="%(refname:short)`, true);
-    }
 
     try {
       tags = await run(`git tag --points-at ${sha}`, true);
@@ -26,7 +18,6 @@ export const getCommitInfo = async (ref = "HEAD~1") => {
       sha,
       date,
       short,
-      branch,
       tags
     };
   }
