@@ -1,21 +1,16 @@
 import axios from '../../index.js';
 
-const {GITHUB_TOKEN, GITHUB_REPOSITORY , GITHUB_REPOSITORY_OWNER} = process.env;
+const {GITHUB_TOKEN, GITHUB_REPOSITORY} = process.env;
 
 class GithubAPI {
-  constructor(owner, repo) {
-    if (!owner) {
-      throw new Error('repo owner must be specified');
-    }
-
+  constructor(repo) {
     if (!repo) {
       throw new Error('repo must be specified');
     }
 
     this.repo = repo;
-    this.owner = owner;
     this.axios = axios.create({
-      baseURL: `https://api.github.com/repos/${this.owner}/${this.repo}/`,
+      baseURL: `https://api.github.com/repos/${this.repo}/`,
       headers: {
         Authorization: GITHUB_TOKEN ? `token ${GITHUB_TOKEN}` : null
       }
@@ -62,4 +57,4 @@ class GithubAPI {
   }
 }
 
-export default new GithubAPI(GITHUB_REPOSITORY_OWNER, GITHUB_REPOSITORY);
+export default new GithubAPI(GITHUB_REPOSITORY);
