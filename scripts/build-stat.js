@@ -100,7 +100,7 @@ const getStatsFromNPM = async (version) => {
 const report = async (files, {releases = 1, base, clear = true} = {}) => {
   const tags = await getLatestTags(releases);
   const fromTag = tags.length && tags[tags.length - 1];
-  const from = fromTag ? fromTag.sha : 'HEAD~5';
+  const from = fromTag ? fromTag.sha : `HEAD~${releases}`;
 
 
   const commits = await getCommits(from);
@@ -111,13 +111,25 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     commit2Tag[tagData.sha] = tagData;
   });
 
+  const snapshotFiles = await listFiles(statDir);
+  const snapshotFilesMap = {};
+
+  snapshotFiles.forEach(file => {
+    snapshotFilesMap[path.parse(file).name] = true;
+  });
+
+  console.log(`Snapshot files [${snapshotFiles.length}]:\n ${snapshotFiles.join('\n')}`);
+
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
-    let snapshot = await readJSONFile(path.join(statDir, `${sha}.json`));
+    const isSnapshotFileExists = snapshotFilesMap[sha];
+
+
+    let snapshot = isSnapshotFileExists && (await readJSONFile(path.join(statDir, `${sha}.json`)));
 
     if (!snapshot) {
       const tagInfo = commit2Tag[sha];
 
-      console.log(`No snapshot found for ${sha}`);
+      console.log(`${i}) No snapshot found for ${sha}`);
 
       if (tagInfo) {
         console.log(` Trying to pull [${tagInfo.tag}] from NPM`);
@@ -135,12 +147,11 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
 
           await writeFileAsync(path.join(statDir, `${sha}.json`), snapshot);
         } else {
-          // Ignore errors for missing tags in NPM
           console.error(`Failed to get snapshot for ${tagInfo.tag} (${sha}) from NPM`);
         }
       }
     } else {
-      console.log(`Loaded snapshot for ${sha} [${snapshot.tag || '---'}] from disk`);
+      console.log(`${i}) Loaded snapshot for ${sha} [${snapshot.tag || '---'}] from disk`);
     }
 
     if (snapshot) {
