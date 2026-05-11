@@ -72,6 +72,7 @@ jobs:
 
       # Restore cache for all commits (BASE, HEAD) to speed up stats collection
       - name: Restore stats cache
+        id: cache
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/axios-stats
@@ -79,6 +80,10 @@ jobs:
           restore-keys: |
             stats-v1-${{ github.repository }}-${{ steps.first_commit.outputs.sha }}
             stats-v1-${{ github.repository }}
+
+      - name: Cache hit info
+        run: |
+          echo "cache-hit=${{ steps.cache.outputs.cache-hit }} for ${{ github.event.workflow_run.head_sha }}"      
 
       - name: Check BASE snapshot
         id: base_snapshot
