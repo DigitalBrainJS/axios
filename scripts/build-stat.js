@@ -111,7 +111,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     commit2Tag[tagData.sha] = tagData;
   });
 
-  await Promise.all(commits.map(async (sha) => {
+  await Promise.all(commits.map(async (sha, i) => {
     let snapshot = await readJSONFile(path.join(statDir, `${sha}.json`));
 
     if (!snapshot) {
@@ -144,7 +144,10 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     }
 
     if (snapshot) {
-      snapshots[sha] = snapshot;
+      snapshots[sha] = {
+        ...snapshot,
+        label: !i ? 'HEAD' : (snapshot.sha === base ? 'BASE': '')
+      };
     }
   }));
 
@@ -192,7 +195,6 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
       stat[1];
 
     stats[file] = {
-      stat,
       diff: {
         size: baseStat ? stat[0].size - baseStat.size : null,
         gzip: baseStat ? stat[0].gzip - baseStat.gzip : null,
