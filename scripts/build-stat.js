@@ -102,6 +102,9 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   const fromTag = tags.length && tags[tags.length - 1];
   const from = fromTag ? fromTag.sha : `HEAD~${releases}`;
 
+  console.log('Latest tags:\n', tags);
+  console.log(`Getting commits from ${from} to HEAD...`);
+
 
   const commits = await getCommits(from);
   const snapshotsMap = {};
