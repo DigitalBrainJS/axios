@@ -8,14 +8,17 @@
 
 {{#each this.stat}}
 - [{{ or (bold this.label)d this.tag this.short }}] ({{ this.sha }}) - **{{ filesize gzip }}** ({{join (diff diff.size) (filesize size) (percent compressed)}})
+{{else}}
+  **No data collected**
 {{/each}}
 
+{{#if graph}}
 #### Graph 📊
 
 <pre>
 {{ graph }}
 </pre>
-
+{{/if}}
 </details>
 {{/each}}
 {{/if}}
