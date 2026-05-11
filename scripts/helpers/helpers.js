@@ -88,6 +88,10 @@ Handlebars.registerHelper('pick', function(index, ...values) {
   return values[+index || 0] ?? '';
 });
 
+Handlebars.registerHelper('bold', function(value) {
+  return value ? `**${value}**` : '';
+});
+
 Handlebars.registerHelper('impact', function(value, ...values) {
   let index, len = values.length;
 
