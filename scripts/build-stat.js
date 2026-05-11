@@ -100,7 +100,7 @@ const getStatsFromNPM = async (version) => {
 const report = async (files, {releases = 1, base, clear = true} = {}) => {
   const tags = await getLatestTags(releases);
   const fromTag = tags.length && tags[tags.length - 1];
-  const from = fromTag ? fromTag.sha : 'HEAD~5';
+  const from = fromTag ? fromTag.sha : `HEAD~${releases}`;
 
 
   const commits = await getCommits(from);
@@ -129,7 +129,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     if (!snapshot) {
       const tagInfo = commit2Tag[sha];
 
-      console.log(`No snapshot found for ${sha}`);
+      console.log(`${i}) No snapshot found for ${sha}`);
 
       if (tagInfo) {
         console.log(` Trying to pull [${tagInfo.tag}] from NPM`);
@@ -147,12 +147,11 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
 
           await writeFileAsync(path.join(statDir, `${sha}.json`), snapshot);
         } else {
-          // Ignore errors for missing tags in NPM
           console.error(`Failed to get snapshot for ${tagInfo.tag} (${sha}) from NPM`);
         }
       }
     } else {
-      console.log(`Loaded snapshot for ${sha} [${snapshot.tag || '---'}] from disk`);
+      console.log(`${i}) Loaded snapshot for ${sha} [${snapshot.tag || '---'}] from disk`);
     }
 
     if (snapshot) {
