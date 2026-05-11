@@ -104,14 +104,14 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
 
 
   const commits = await getCommits(from);
-  const snapshots = {};
+  const snapshotsMap = {};
   const commit2Tag = {};
 
   tags.forEach(tagData => {
     commit2Tag[tagData.sha] = tagData;
   });
 
-  await Promise.all(commits.map(async (sha, i) => {
+  const snapshots = await Promise.all(commits.map(async (sha, i) => {
     let snapshot = await readJSONFile(path.join(statDir, `${sha}.json`));
 
     if (!snapshot) {
@@ -144,15 +144,20 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     }
 
     if (snapshot) {
-      snapshots[sha] = {
-        ...snapshot,
-        label: !i ? 'HEAD' : (snapshot.sha === base ? 'BASE': '')
-      };
+      snapshot.label = !i ? 'HEAD' : (snapshot.sha === base ? 'BASE' : '');
     }
+
+    return snapshot;
   }));
 
+  snapshots.forEach((snapshot) => {
+    if(snapshot) {
+      snapshotsMap[snapshot.sha] = snapshot;
+    }
+  });
+
   if (clear) {
-    await clearStats(snapshots);
+    await clearStats(snapshotsMap);
   }
 
   const stats = {};
@@ -160,7 +165,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   let impact = 0;
 
   files.forEach(file => {
-    const stat = Object.values(snapshots).map((snapshot) => {
+    const stat = Object.values(snapshotsMap).map((snapshot) => {
       const stat = snapshot?.stats[file];
 
       if (stat) {
@@ -169,6 +174,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
           short: snapshot.short,
           tag: snapshot.tag,
           date: snapshot.date,
+          label: snapshot.label,
           ...stat
         }
       }
@@ -195,6 +201,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
       stat[1];
 
     stats[file] = {
+      stat,
       diff: {
         size: baseStat ? stat[0].size - baseStat.size : null,
         gzip: baseStat ? stat[0].gzip - baseStat.gzip : null,
@@ -211,7 +218,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   return {
     impact,
     stats,
-    snapshots
+    snapshots: snapshotsMap
   };
 }
 
@@ -238,7 +245,7 @@ const clearStats = async (snapshots) => {
 
 
 (async (args) => {
-  let {template, skipIfExists = true, releases, base, dir = distDir} = args;
+  let {skipIfExists = true, releases, base, dir = distDir} = args;
   let [action, ...rest] = args._;
   let pr = args.pr || process.env.PR_NUMBER;
   let marker = args.marker || process.env.DEFAULT_MARKER || 'axios-comment-marker';
@@ -286,10 +293,9 @@ const clearStats = async (snapshots) => {
     }
   }
 })(minimist(process.argv.slice(2), {
-  strings: ['template', 'releases', 'pr', 'base', 'dir', 'target'],
+  strings: ['releases', 'pr', 'base', 'dir', 'target'],
   boolean: ['skipIfExists'],
   alias: {
-    template: 't',
     releases: 'r',
     skipIfExists: 's',
     base: 'b',
