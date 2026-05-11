@@ -111,8 +111,20 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
     commit2Tag[tagData.sha] = tagData;
   });
 
+  const snapshotFiles = await listFiles(statDir);
+  const snapshotFilesMap = {};
+
+  snapshotFiles.forEach(file => {
+    snapshotFilesMap[path.parse(file).name] = true;
+  });
+
+  console.log(`Snapshot files [${snapshotFiles.length}]:\n ${snapshotFiles.join('\n')}`);
+
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
-    let snapshot = await readJSONFile(path.join(statDir, `${sha}.json`));
+    const isSnapshotFileExists = snapshotFilesMap[sha];
+
+
+    let snapshot = isSnapshotFileExists && (await readJSONFile(path.join(statDir, `${sha}.json`)));
 
     if (!snapshot) {
       const tagInfo = commit2Tag[sha];
