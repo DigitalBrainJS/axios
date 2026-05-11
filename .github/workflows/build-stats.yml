@@ -124,4 +124,4 @@ jobs:
         working-directory: ${{ github.workspace }}
         id: report
         run: |
-          node ${{ runner.temp }}/build-stat.js report --releases 3 --base "$BASE_REF_ARG"
+          node ${{ runner.temp }}/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 5 --base "$BASE_REF_ARG"
