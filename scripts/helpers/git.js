@@ -2,24 +2,24 @@ import {run} from "./helpers.js";
 
 
 export const getCommitInfo = async (ref = "HEAD") => {
-    const [sha, date, short] = await run(
-      `git show -s --format=%H%n%cI%h ${ref}`,
-      true
-    );
+  const [sha, date, short] = await run(
+    `git show -s --format=%H%n%cI%n%h ${ref}`,
+    true
+  );
 
-    let tags = [];
+  let tags = [];
 
-    try {
-      tags = await run(`git tag --points-at ${sha}`, true);
-    } catch {}
+  try {
+    tags = await run(`git tag --points-at ${sha}`, true);
+  } catch {}
 
-    return {
-      sha,
-      date,
-      short,
-      tags
-    };
-  }
+  return {
+    sha,
+    date,
+    short,
+    tags
+  };
+}
 
 export const getLatestTags = async (limit = 1, pattern= 'v*') => {
   const tags = await run(
