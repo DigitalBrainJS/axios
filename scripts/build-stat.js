@@ -206,9 +206,9 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
         size: baseStat ? stat[0].size - baseStat.size : null,
         gzip: baseStat ? stat[0].gzip - baseStat.gzip : null,
       },
-      graph: barChart(stat.map(({tag, short, sha, gzip}) => {
+      graph: barChart(stat.map(({tag, short, label, sha, gzip}) => {
         return {
-          label: tag || short || sha,
+          label: label || tag || short || sha,
           value: gzip
         };
       }))
@@ -288,6 +288,17 @@ const clearStats = async (snapshots) => {
       }
 
       console.log(reportText);
+
+      if (process.env.GITHUB_STEP_SUMMARY) {
+        try {
+          await fs.writeFile(
+            process.env.GITHUB_STEP_SUMMARY,
+            reportText
+          );
+        } catch (err) {
+          console.error('Failed to write GitHub summary', err);
+        }
+      }
 
       break;
     }
