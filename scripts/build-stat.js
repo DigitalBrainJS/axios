@@ -9,6 +9,7 @@ import {gzip} from "zlib";
 import {getFilesFromNPM} from "./helpers/npm.js";
 import github from "./helpers/github.js";
 
+console.log(`ENV: ${process.env}`);
 
 const gzipAsync = util.promisify(gzip);
 
@@ -18,7 +19,7 @@ const jsFilesExt = {
   '.mjs': true
 };
 
-const statDir = process.env.STATS_PATH || path.join(os.tmpdir(), './axios-stats/');
+const statDir = process.env.STATS_PATH || '.fallback-stats/';//path.join(os.tmpdir(), './axios-stats/');
 const distDir = 'dist/';
 
 const getFileStats = async (filename) => {
