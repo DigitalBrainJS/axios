@@ -245,3 +245,8 @@ jobs:
       - name: Run Deno smoke tests
         working-directory: tests/smoke/deno
         run: deno task test
+
+  dummy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "dummy job to prevent workflow from being empty"
