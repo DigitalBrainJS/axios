@@ -18,7 +18,7 @@ const jsFilesExt = {
   '.mjs': true
 };
 
-const statDir = path.join(os.tmpdir(), './axios-stats/');
+const statDir = process.env.STATS_PATH || path.join(os.tmpdir(), './axios-stats/');
 const distDir = 'dist/';
 
 const getFileStats = async (filename) => {
