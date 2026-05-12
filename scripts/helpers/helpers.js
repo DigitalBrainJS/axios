@@ -1,5 +1,5 @@
-import { readdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import {readdir} from 'fs/promises';
+import {join, dirname} from 'path';
 import util from "util";
 import cp from "child_process";
 import fs from "fs/promises";
@@ -25,7 +25,7 @@ export const listFiles = async (dir) => {
     return entries.filter(entry => entry.isFile()).map(file => {
       return join(file.parentPath, file.name);
     });
-  } catch(err) {
+  } catch (err) {
     if (err.code !== 'ENOENT') {
       throw e;
     }
@@ -46,11 +46,11 @@ export const readJSONFile = async (file) => {
 export const writeFileAsync = async (filePath, content) => {
   const dir = dirname(filePath);
 
-  await fs.mkdir(dir, { recursive: true });
+  await fs.mkdir(dir, {recursive: true});
 
   await fs.writeFile(filePath,
     typeof content === 'object' ?
-        ArrayBuffer.isView(content) ? Buffer.from(content) :
+      ArrayBuffer.isView(content) ? Buffer.from(content) :
         JSON.stringify(content, null, 2) :
       String(content));
 }
@@ -59,52 +59,61 @@ export const writeFileAsync = async (filePath, content) => {
 Handlebars.registerHelper('filesize', (bytes, ...args) => {
   args.pop();
 
-  const [maximumFractionDigits = 2] = args;
+  const [maximumFractionDigits = 2, signed] = args;
 
-  return bytes != null ? `<span title="${bytes} bytes">${prettyBytes(bytes, {
-    maximumFractionDigits,
-  })}</span>` : '<unknown>'
+  if (bytes == null) {
+    return '<unknown>';
+  }
+
+  return new Handlebars.SafeString(
+    `<span title="${Handlebars.escapeExpression(bytes)}">${
+      prettyBytes(bytes, {
+        maximumFractionDigits,
+        signed: !!signed
+      })
+    }</span>`
+  );
+});
+
+Handlebars.registerHelper('tooltip', (text, title) => {
+  return new Handlebars.SafeString(
+    `<span title="${Handlebars.escapeExpression(title)}">${Handlebars.escapeExpression(text)}</span>`
+  );
 });
 
 Handlebars.registerHelper('percent', (value) => Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : `---`);
 
-Handlebars.registerHelper('or', function(...values) {
+Handlebars.registerHelper('or', function (...values) {
   values.pop();
   return values.find(Boolean);
 });
 
-Handlebars.registerHelper('eq', function(a, b) {
+Handlebars.registerHelper('eq', function (a, b) {
   return a === b;
 });
 
-Handlebars.registerHelper('diff', (bytes) => {
-  return bytes != null ? prettyBytes(bytes, {
-    signed: true
-  }) : ''
-});
-
-Handlebars.registerHelper('pick', function(index, ...values) {
+Handlebars.registerHelper('pick', function (index, ...values) {
   values.pop();
   return values[+index || 0] ?? '';
 });
 
-Handlebars.registerHelper('bold', function(value) {
+Handlebars.registerHelper('bold', function (value) {
   return value ? `**${value}**` : '';
 });
 
-Handlebars.registerHelper('impact', function(value, ...values) {
+Handlebars.registerHelper('impact', function (value, ...values) {
   let index, len = values.length;
 
   for (let i = 0; i < len; i += 2) {
     let val = values[i];
 
-    if(typeof val === 'string') {
+    if (typeof val === 'string') {
       index = i;
       break;
     }
 
     if (value <= val) {
-      index = i + 1 ;
+      index = i + 1;
       break;
     }
   }
@@ -115,9 +124,9 @@ Handlebars.registerHelper('impact', function(value, ...values) {
 Handlebars.registerHelper('join', function (...args) {
   args.pop();
 
-  return args
+  return new Handlebars.SafeString(args
     .filter(v => v !== undefined && v !== null && v !== '')
-    .join(', ');
+    .join(', '));
 });
 
 export const barChart = (data, width = 50, pad = 15) => {
