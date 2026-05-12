@@ -261,7 +261,7 @@ const clearStats = async (snapshots) => {
 
 
 (async (args) => {
-  let {skipIfExists = true, releases, base, dir = distDir} = args;
+  let {skipIfExists = true, releases, base, dir = distDir, template} = args;
   let [action, ...rest] = args._;
   let pr = args.pr || process.env.PR_NUMBER;
   let marker = args.marker || process.env.DEFAULT_MARKER || 'axios-comment-marker';
@@ -284,14 +284,16 @@ const clearStats = async (snapshots) => {
     case 'report': {
       const [...files] = rest;
 
-      const template = await fs.readFile('./scripts/templates/build-stat.hbs');
+      const templateContent = await fs.readFile(
+        template || path.join(import.meta.dirname, './templates/build-stat.hbs')
+      );
 
       const stats = await report(files, {
         releases,
         base
       });
 
-      const reportText = Handlebars.compile(String(template))(stats);
+      const reportText = Handlebars.compile(String(templateContent))(stats);
 
       if (pr) {
         const fullMarker = `<!-- ${marker} -->`;
@@ -320,7 +322,7 @@ const clearStats = async (snapshots) => {
     }
   }
 })(minimist(process.argv.slice(2), {
-  strings: ['releases', 'pr', 'base', 'dir', 'target'],
+  strings: ['releases', 'pr', 'base', 'dir', 'template'],
   boolean: ['skipIfExists'],
   alias: {
     releases: 'r',
@@ -328,6 +330,6 @@ const clearStats = async (snapshots) => {
     base: 'b',
     pr: 'p',
     dir: 'd',
-    target: 't'
+    template: 't'
   }
 }));
