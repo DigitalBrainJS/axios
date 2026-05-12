@@ -61,9 +61,9 @@ Handlebars.registerHelper('filesize', (bytes, ...args) => {
 
   const [maximumFractionDigits = 2] = args;
 
-  return bytes != null ? prettyBytes(bytes, {
+  return bytes != null ? `<span title="${bytes} bytes">${prettyBytes(bytes, {
     maximumFractionDigits,
-  }) : '<unknown>'
+  })}</span>` : '<unknown>'
 });
 
 Handlebars.registerHelper('percent', (value) => Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : `---`);
