@@ -117,11 +117,15 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   const snapshotFiles = await listFiles(statDir);
   const snapshotFilesMap = {};
 
-  snapshotFiles.forEach(file => {
-    snapshotFilesMap[path.parse(file).name] = true;
-  });
+  if (snapshotFiles) {
+    snapshotFiles.forEach(file => {
+      snapshotFilesMap[path.parse(file).name] = true;
+    });
 
-  console.log(`Snapshot files [${snapshotFiles.length}]:\n ${snapshotFiles.join('\n')}`);
+    console.log(`Snapshot files [${snapshotFiles.length}]:\n ${snapshotFiles.join('\n')}`);
+  } else {
+    console.log('No snapshot directory found on disk');
+  }
 
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
     const isSnapshotFileExists = snapshotFilesMap[sha];
