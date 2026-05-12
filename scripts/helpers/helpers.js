@@ -1,5 +1,5 @@
 import { readdir } from 'fs/promises';
-import { join, relative, resolve, dirname } from 'path';
+import { join, dirname } from 'path';
 import util from "util";
 import cp from "child_process";
 import fs from "fs/promises";
