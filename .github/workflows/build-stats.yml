@@ -20,6 +20,7 @@ jobs:
 
     env:
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
       BASE_REF_ARG: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
 
     steps:
@@ -35,7 +36,7 @@ jobs:
       - name: Get first commit in PR range
         id: first_commit
         run: |
-          FIRST=$(git rev-list ${{ github.event.workflow_run.pull_requests[0].base.sha }}..HEAD --reverse -n 1)
+          FIRST=$(git rev-list $(git merge-base "$BASE_SHA" HEAD)..HEAD --reverse -n 1)
         
           if [ -z "$FIRST" ]; then
             FIRST="${{ github.event.workflow_run.head_sha }}"
