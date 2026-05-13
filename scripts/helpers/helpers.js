@@ -66,7 +66,7 @@ Handlebars.registerHelper('filesize', (bytes, ...args) => {
   }
 
   return new Handlebars.SafeString(
-    `<span title="${Handlebars.escapeExpression(bytes)}">${
+    `<span title="${Handlebars.escapeExpression(bytes)} bytes">${
       prettyBytes(bytes, {
         maximumFractionDigits,
         signed: !!signed
@@ -119,6 +119,17 @@ Handlebars.registerHelper('impact', function (value, ...values) {
   }
 
   return index != null && values[index || 0] || '';
+});
+
+Handlebars.registerHelper('date', (...values) => {
+  values.pop();
+
+  const [value, locale = 'en-US'] = values;
+
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(value));
 });
 
 Handlebars.registerHelper('join', function (...args) {

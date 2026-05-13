@@ -7,7 +7,7 @@
 <summary>{{@key}} ({{ join (filesize this.diff.gzip 2 true) (filesize this.stat.[0].gzip) }} ) {{impact this.diff.gzip 5 "🟢 Near-Zero Impact" 100 "🟡 Low Impact" 200 "🟠 Medium Impact" 500 "🔴 High Impact" "🟥 Extreme Impact"}}</summary>
 
 {{#each this.stat}}
-- {{ or (bold this.label) this.tag "────────" }} ({{ this.sha }}) - **{{ filesize gzip }}** ({{join (filesize diff.size 2 true) (filesize size) (percent compressed)}})
+- {{ tooltip (or (bold this.label) this.tag "---") (date this.date) }} ({{ this.sha }}) - **{{ filesize gzip }}** ({{join (filesize diff.size 2 true) (filesize size) (percent compressed)}})
 {{else}}
   **No data collected**
 {{/each}}
