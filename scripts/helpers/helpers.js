@@ -62,7 +62,7 @@ Handlebars.registerHelper('filesize', (bytes, ...args) => {
   const [maximumFractionDigits = 2, signed] = args;
 
   if (bytes == null) {
-    return '<unknown>';
+    return '';
   }
 
   return new Handlebars.SafeString(
