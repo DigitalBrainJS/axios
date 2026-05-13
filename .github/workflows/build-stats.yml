@@ -146,4 +146,4 @@ jobs:
         working-directory: pr
         id: report
         run: |
-          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 5 --base "$BASE_REF_ARG"
+          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$BASE_REF_ARG"
