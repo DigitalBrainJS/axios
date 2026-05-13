@@ -1,5 +1,5 @@
 import minimist from "minimist";
-import {getCommitInfo, getLatestTags, checkout, getCommits} from "./helpers/git.js";
+import {getCommitInfo, getLatestTags, getCommits} from "./helpers/git.js";
 import fs from "fs/promises";
 import {listFiles, readJSONFile, writeFileAsync, Handlebars, barChart} from "./helpers/helpers.js";
 import path from "path";
@@ -95,12 +95,18 @@ const getStatsFromNPM = async (version) => {
 }
 
 
-const report = async (files, {releases = 1, base, clear = true} = {}) => {
-  const tags = await getLatestTags(releases);
-  const fromTag = tags.length && tags[tags.length - 1];
+const report = async (files, {
+  releases = 1,
+  base,
+  clear = true,
+  maxNPMPulls = 5,
+  limit = 100
+} = {}) => {
+  const releaseTags = await getLatestTags(releases);
+  const fromTag = releaseTags.length && releaseTags[releaseTags.length - 1];
   const from = fromTag ? fromTag.sha : `HEAD~${releases}`;
 
-  console.log('Latest tags:\n', tags);
+  console.log('Latest tags:\n', releaseTags);
   console.log(`Getting commits from ${from} to HEAD...`);
 
 
@@ -108,7 +114,7 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   const snapshotsMap = {};
   const commit2Tag = {};
 
-  tags.forEach(tagData => {
+  releaseTags.forEach(tagData => {
     commit2Tag[tagData.sha] = tagData;
   });
 
@@ -120,39 +126,58 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
       snapshotFilesMap[path.parse(file).name] = true;
     });
 
-    console.log(`Snapshot files [${snapshotFiles.length}]:\n ${snapshotFiles.join('\n')}`);
+    console.log(`Snapshot files [${snapshotFiles.length}]:\n${snapshotFiles.join('\n')}`);
   } else {
     console.log('No snapshot directory found on disk');
   }
 
-  const snapshots = await Promise.all(commits.map(async (sha, i) => {
-    const isSnapshotFileExists = snapshotFilesMap[sha];
+  let pullCounter = 0;
 
+  maxNPMPulls = Math.min(releases, limit, maxNPMPulls);
+
+  let firstReleaseTagFound;
+
+  const snapshots = await Promise.all(commits.map(async (sha, i) => {
+    const releaseTagInfo = commit2Tag[sha];
+
+    if (!releaseTagInfo) {
+      if (firstReleaseTagFound) {
+        console.log(`Skipping stats for non-release intermediate commit ${sha}`);
+        return null;
+      }
+    } else {
+      firstReleaseTagFound = true;
+    }
+
+    const isSnapshotFileExists = snapshotFilesMap[sha];
 
     let snapshot = isSnapshotFileExists && (await readJSONFile(path.join(statDir, `${sha}.json`)));
 
     if (!snapshot) {
-      const tagInfo = commit2Tag[sha];
+
 
       console.log(`${i}) No snapshot found for ${sha}`);
 
-      if (tagInfo) {
-        console.log(` Trying to pull [${tagInfo.tag}] from NPM`);
+      if (releaseTagInfo && pullCounter < maxNPMPulls) {
+        pullCounter++;
 
-        const stats = await getStatsFromNPM(tagInfo.tag);
+        console.log(` Trying to pull [${releaseTagInfo.tag}] from NPM`);
+
+
+        const stats = await getStatsFromNPM(releaseTagInfo.tag);
 
         if (stats) {
           snapshot = {
             sha,
-            tag: tagInfo.tag,
-            date: tagInfo.date,
-            short: tagInfo.short,
+            tag: releaseTagInfo.tag,
+            date: releaseTagInfo.date,
+            short: releaseTagInfo.short,
             stats
           };
 
           await writeFileAsync(path.join(statDir, `${sha}.json`), snapshot);
         } else {
-          console.error(`Failed to get snapshot for ${tagInfo.tag} (${sha}) from NPM`);
+          console.error(`Failed to get snapshot for ${releaseTagInfo.tag} (${sha}) from NPM`);
         }
       }
     } else {
@@ -178,8 +203,6 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
 
   const stats = {};
 
-  let impact = 0;
-
   files.forEach(file => {
     const stat = Object.values(snapshotsMap).map((snapshot) => {
       const stat = snapshot?.stats[file];
@@ -199,10 +222,6 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
       const diff = next ? snapshot.size - next.size : null;
       const diffGZip = next ? snapshot.gzip - next.gzip : null;
 
-      if (diffGZip > 0) {
-        impact += diffGZip;
-      }
-
       return {
         ...snapshot,
         diff: {
@@ -210,10 +229,10 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
           gzip: diffGZip
         }
       }
-    });
+    }).slice(0, limit);
 
     const baseStat = base &&
-      (base === 'release' ? tags[0].sha : stat.find(({sha}) => sha === base)) ||
+      (base === 'release' ? releaseTags[0].sha : stat.find(({sha}) => sha === base)) ||
       stat[1];
 
     stats[file] = {
@@ -232,7 +251,6 @@ const report = async (files, {releases = 1, base, clear = true} = {}) => {
   });
 
   return {
-    impact,
     stats,
     snapshots: snapshotsMap
   };
