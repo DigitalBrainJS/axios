@@ -21,12 +21,7 @@ jobs:
       BASE_REF: ${{ github.event.pull_request.base.ref }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
-      BASE_REF_ARG: ${{
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.head.ref == 'release'
-        && 'release'
-        || github.event.pull_request.base.sha
-      }}
+      BASE_REF_ARG: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release' && 'release' || github.event.pull_request.base.sha }}
 
     steps:
       - name: Set stats path
