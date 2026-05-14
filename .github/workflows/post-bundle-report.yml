@@ -1,4 +1,4 @@
-name: Report bundle stats
+name: Post bundle report
 
 on:
   workflow_run:
@@ -12,9 +12,6 @@ permissions:
 
 jobs:
   bundle-stat-report:
-    if: >
-      github.event.workflow_run.conclusion == 'success'
-
     runs-on: ubuntu-latest
 
     env:
@@ -23,10 +20,6 @@ jobs:
       BASE_HEAD: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
 
     steps:
-      - name: Pretty print workflow_run
-        run: |
-          echo '${{ toJSON(github.event.workflow_run) }}' | jq .
-
       - name: Set stats path
         run: |
           echo "STATS_PATH=${{ runner.temp }}/axios-stats" >> $GITHUB_ENV
@@ -53,7 +46,12 @@ jobs:
           key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}
 
       - name: Post report comment
-        if: steps.cache.outputs.cache-hit == 'true'
+        if: steps.cache.outputs.cache-hit == 'true' && github.event.workflow_run.conclusion == 'success'
         run: |
           node scripts/report.js --file ${{ env.STATS_PATH }}/report.md
+
+      - name: Post failed report comment
+        if: github.event.workflow_run.conclusion != 'success'
+        run: |
+          node scripts/report.js "⚠️ Bundle report generation failed for this PR. Please check the workflow run for details: ${{ github.event.workflow_run.html_url }}"  
 
