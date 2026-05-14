@@ -27,7 +27,7 @@ export const listFiles = async (dir) => {
     });
   } catch (err) {
     if (err.code !== 'ENOENT') {
-      throw e;
+      throw err;
     }
   }
 }

@@ -39,6 +39,10 @@ class GithubAPI {
     return (await this.axios.patch(`/issues/comments/${id}`, {body})).data;
   }
 
+  async user() {
+    return (await this.axios.get('/user')).data;
+  }
+
   async findCommentAndUpdate(issue, body, find, removeEmpty = true) {
     const comments = await this.getComments(issue);
 
@@ -53,7 +57,7 @@ class GithubAPI {
       return this.updateComment(existing.id, body);
     }
 
-    return this.addComment(issue, body);
+    return body ? this.addComment(issue, body) : null;
   }
 }
 
