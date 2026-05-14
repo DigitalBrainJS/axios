@@ -6,7 +6,6 @@ import path from "path";
 import util from "util";
 import {gzip} from "zlib";
 import {getFilesFromNPM} from "./helpers/npm.js";
-import github from "./helpers/github.js";
 
 const gzipAsync = util.promisify(gzip);
 
@@ -231,9 +230,11 @@ const report = async (files, {
       }
     }).slice(0, limit);
 
-    const baseStat = base &&
-      (base === 'release' ? releaseTags[0].sha : stat.find(({sha}) => sha === base)) ||
-      stat[1];
+    if (base === 'release') {
+      base = releaseTags[0]?.sha;
+    }
+
+    const baseStat = base && stat.find(({sha}) => sha === base) || stat[1];
 
     stats[file] = {
       stat,
@@ -275,14 +276,9 @@ const clearStats = async (snapshots) => {
   }
 }
 
-
-
-
 (async (args) => {
-  let {skipIfExists = true, releases, base, dir = distDir, template} = args;
+  let {skipIfExists = true, releases, base, dir = distDir, template, file} = args;
   let [action, ...rest] = args._;
-  let pr = args.pr || process.env.PR_NUMBER;
-  let marker = args.marker || process.env.DEFAULT_MARKER || 'axios-comment-marker';
 
   console.log(`Stat dir: ${statDir}`);
 
@@ -313,17 +309,15 @@ const clearStats = async (snapshots) => {
 
       const reportText = Handlebars.compile(String(templateContent))(stats);
 
-      if (pr) {
-        const fullMarker = `<!-- ${marker} -->`;
-
-        await github.findCommentAndUpdate(
-          pr,
-          reportText ? `${fullMarker}\r\n${reportText}` : '',
-          ({body}) => body.trim().startsWith(fullMarker)
-        );
-      }
-
       console.log(reportText);
+
+      if (file) {
+        try {
+          await fs.writeFile(file, reportText);
+        } catch (err) {
+          console.error('Failed to write report to file', err);
+        }
+      }
 
       if (process.env.GITHUB_STEP_SUMMARY) {
         try {
@@ -340,13 +334,12 @@ const clearStats = async (snapshots) => {
     }
   }
 })(minimist(process.argv.slice(2), {
-  strings: ['releases', 'pr', 'base', 'dir', 'template'],
+  strings: ['releases', 'base', 'dir', 'template'],
   boolean: ['skipIfExists'],
   alias: {
     releases: 'r',
     skipIfExists: 's',
     base: 'b',
-    pr: 'p',
     dir: 'd',
     template: 't'
   }

@@ -53,7 +53,7 @@ class GithubAPI {
       return this.updateComment(existing.id, body);
     }
 
-    return this.addComment(issue, body);
+    return body ? this.addComment(issue, body) : null;
   }
 }
 
