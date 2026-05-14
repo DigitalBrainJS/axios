@@ -1,0 +1,24 @@
+{{#if stats}}
+### Bundle size trends 📈
+
+{{#each stats}}
+
+<details>
+<summary>{{@key}} ({{ join (filesize this.diff.gzip 2 true) (filesize this.stat.[0].gzip) }} ) {{impact this.diff.gzip 5 "🟢 Near-Zero Impact" 100 "🟡 Low Impact" 200 "🟠 Medium Impact" 500 "🔴 High Impact" "🟥 Extreme Impact"}}</summary>
+
+{{#each this.stat}}
+- {{ tooltip (or (bold this.label) this.tag "- - -") (date this.date) }} ({{ this.sha }}) - **{{ filesize gzip }}** ({{join (filesize diff.size 2 true) (filesize size) (percent compressed)}})
+{{else}}
+  **No data collected**
+{{/each}}
+
+{{#if graph}}
+#### Graph 📊
+
+<pre>
+{{ graph }}
+</pre>
+{{/if}}
+</details>
+{{/each}}
+{{/if}}

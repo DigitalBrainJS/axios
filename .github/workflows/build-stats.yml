@@ -1,0 +1,146 @@
+name: Bundle size analyzer
+
+on:
+  workflow_run:
+    workflows: ["Continuous integration"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  bundle-size:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+
+    runs-on: ubuntu-latest
+
+    env:
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      BASE_REF_ARG: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
+
+    steps:
+      - name: Set stats path
+        run: |
+          echo "STATS_PATH=${{ runner.temp }}/axios-stats" >> $GITHUB_ENV
+
+      - name: Ensure axios-stats dir exists
+        run: mkdir -p ${{ env.STATS_PATH }}
+
+      - name: Info
+        run: |
+          echo "STATS PATH: ${{ env.STATS_PATH }}"
+          echo "BASE: ${{ env.BASE_SHA }}"
+          echo "HEAD: ${{ env.HEAD_SHA }}"
+          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"        
+
+      # Restore cache for all commits (BASE, HEAD) to speed up stats collection
+      - name: Restore stats cache
+        id: cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STATS_PATH }}
+          key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}
+          restore-keys: |
+            stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-
+            stats-v1-${{ github.repository }}-
+
+      - name: Cache hit info
+        run: |
+          echo "cache-hit=${{ steps.cache.outputs.cache-hit }} for ${{ github.event.workflow_run.head_sha }}"   
+
+      - name: Checkout base branch HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
+          path: base-head
+
+      - name: Checkout PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: pr
+          fetch-depth: 0
+
+      - name: Install BASE HEAD deps
+        working-directory: base-head
+        run: npm ci --ignore-scripts
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: |
+            base-head/package-lock.json
+            pr/package-lock.json
+
+      # BASE snapshot check and collection
+      - name: Check BASE snapshot
+        id: base_snapshot
+        run: |
+          FILE="${{ env.STATS_PATH }}/${{ github.event.workflow_run.pull_requests[0].base.sha }}.json"
+          
+          if [ -f "$FILE" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi   
+
+      - name: Checkout to BASE
+        if: steps.base_snapshot.outputs.exists != 'true'
+        working-directory: pr
+        run: |
+          git reset --hard
+          git clean -fd
+          git checkout ${{ github.event.workflow_run.pull_requests[0].base.sha }}
+
+      - name: Install BASE dependencies
+        if: steps.base_snapshot.outputs.exists != 'true'
+        working-directory: pr
+        run: npm ci --ignore-scripts
+
+      - name: Build axios for BASE
+        if: steps.base_snapshot.outputs.exists != 'true'
+        working-directory: pr
+        run: npm run build
+
+      - name: Collect BASE stats
+        if: steps.base_snapshot.outputs.exists != 'true'
+        working-directory: pr
+        run: |
+          node ../base-head/scripts/build-stat.js snapshot -s
+      #############################################
+
+      - name: Checkout HEAD
+        working-directory: pr
+        run: |
+          git reset --hard
+          git clean -fd
+          git checkout ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install HEAD dependencies
+        working-directory: pr
+        run: npm ci --ignore-scripts
+
+      - name: Build axios for HEAD
+        working-directory: pr
+        run: npm run build
+
+      - name: Collect HEAD stats
+        working-directory: pr
+        run: |
+          node ../base-head/scripts/build-stat.js snapshot -s   
+
+      - name: Generate & Post report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: pr
+        id: report
+        run: |
+          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$BASE_REF_ARG"
