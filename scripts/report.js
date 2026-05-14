@@ -27,7 +27,7 @@ import minimist from "minimist";
     await github.findCommentAndUpdate(
       pr,
       reportText ? `${fullMarker}\r\n${reportText}` : '',
-      ({body}) => body.trim().startsWith(fullMarker),
+      ({body, user}) => user?.login === 'github-actions[bot]' && body.trim().startsWith(fullMarker),
       noempty
     );
   } else {

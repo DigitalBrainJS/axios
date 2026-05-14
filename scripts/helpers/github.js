@@ -39,6 +39,10 @@ class GithubAPI {
     return (await this.axios.patch(`/issues/comments/${id}`, {body})).data;
   }
 
+  async user() {
+    return (await this.axios.get('/user')).data;
+  }
+
   async findCommentAndUpdate(issue, body, find, removeEmpty = true) {
     const comments = await this.getComments(issue);
 
