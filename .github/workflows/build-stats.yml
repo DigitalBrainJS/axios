@@ -139,7 +139,7 @@ jobs:
         run: |
           node ../base-head/scripts/build-stat.js snapshot -s   
 
-      - name: Generate & Post report
+      - name: Generate report
         working-directory: pr
         id: report
         run: |

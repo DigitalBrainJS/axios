@@ -138,9 +138,10 @@ const report = async (files, {
 
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
     const releaseTagInfo = commit2Tag[sha];
+    const isBase = base && sha === base;
 
     if (!releaseTagInfo) {
-      if (firstReleaseTagFound) {
+      if (!isBase && firstReleaseTagFound) {
         console.log(`Skipping stats for non-release intermediate commit ${sha}`);
         return null;
       }
@@ -184,7 +185,7 @@ const report = async (files, {
     }
 
     if (snapshot) {
-      snapshot.label = !i ? 'HEAD' : (snapshot.sha === base ? 'BASE' : '');
+      snapshot.label = !i ? 'HEAD' : (isBase ? 'BASE' : '');
     }
 
     return snapshot;
