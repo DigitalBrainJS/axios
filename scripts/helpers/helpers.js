@@ -57,16 +57,19 @@ export const writeFileAsync = async (filePath, content) => {
 }
 
 export const setOutput = async (values) => {
-  if (!process.env.GITHUB_OUTPUT) {
-    return false;
-  }
+  if (!process.env.GITHUB_OUTPUT) return false;
 
   const delimiter = crypto.randomUUID();
 
-  await fs.appendFile(
-    process.env.GITHUB_OUTPUT,
-    Object.entries(values).map(([name, value]) => `${name}=<<${delimiter}\n${value}\n${delimiter}`).join('\n')
-  );
+  let content = "";
+
+  for (const [name, value] of Object.entries(values)) {
+    content += `${name}<<${delimiter}\n${value}\n${delimiter}\n`;
+  }
+
+  if (content) {
+    await fs.appendFile(process.env.GITHUB_OUTPUT, content);
+  }
 
   return true;
 }
