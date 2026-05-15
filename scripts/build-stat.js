@@ -277,7 +277,7 @@ const clearStats = async (snapshots) => {
 }
 
 (async (args) => {
-  let {skipIfExists = true, releases, base, dir = distDir, template} = args;
+  let {skipIfExists = true, releases, base, dir = distDir, template, file} = args;
   let [action, ...rest] = args._;
 
   console.log(`Stat dir: ${statDir}`);
@@ -311,10 +311,6 @@ const clearStats = async (snapshots) => {
 
       console.log(reportText);
 
-      await setOutput({
-        report: reportText
-      });
-
       if (process.env.GITHUB_STEP_SUMMARY) {
         try {
           await fs.writeFile(
@@ -326,17 +322,25 @@ const clearStats = async (snapshots) => {
         }
       }
 
+      if (file) {
+        await fs.writeFile(
+          file,
+          reportText
+        )
+      }
+
       break;
     }
   }
 })(minimist(process.argv.slice(2), {
-  strings: ['releases', 'base', 'dir', 'template'],
+  strings: ['releases', 'base', 'dir', 'template', 'file'],
   boolean: ['skipIfExists'],
   alias: {
     releases: 'r',
     skipIfExists: 's',
     base: 'b',
     dir: 'd',
-    template: 't'
+    template: 't',
+    file: 'f'
   }
 }));
