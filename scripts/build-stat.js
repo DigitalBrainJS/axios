@@ -134,23 +134,24 @@ const report = async (files, {
 
   maxNPMPulls = Math.min(releases, limit, maxNPMPulls);
 
-  let firstReleaseTagFound;
-
-  if (base === 'release') {
-    base = releaseTags[0]?.sha;
-  }
+  let baseCommitFound;
 
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
     const releaseTagInfo = commit2Tag[sha];
+
+    if (!base && releaseTagInfo) {
+      base = releaseTagInfo.sha;
+    }
+
     const isBase = base && sha === base;
 
-    if (!releaseTagInfo) {
-      if (!isBase && firstReleaseTagFound) {
-        console.log(`Skipping stats for non-release intermediate commit ${sha}`);
-        return null;
-      }
-    } else {
-      firstReleaseTagFound = true;
+    if (baseCommitFound && !releaseTagInfo) {
+      console.log(`Skipping stats for non-release intermediate commit ${sha}`);
+      return null;
+    }
+
+    if (isBase) {
+      baseCommitFound = true;
     }
 
     const isSnapshotFileExists = snapshotFilesMap[sha];
@@ -285,6 +286,7 @@ const clearStats = async (snapshots) => {
   let {skipIfExists = true, releases, base, dir = distDir, template, file} = args;
   let [action, ...rest] = args._;
 
+  console.log(`BASE: ${base}`);
   console.log(`Stat dir: ${statDir}`);
 
   switch (action) {
