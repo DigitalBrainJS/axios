@@ -143,13 +143,13 @@ jobs:
         working-directory: pr
         id: report
         run: |
-          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$BASE_REF_ARG" --file ${{ runner.temp }}/report.md
+          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$BASE_REF_ARG" --file ${{ runner.temp }}/bundle-report/report.md
 
       - name: Upload report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bundle-report
-          path: ${{ runner.temp }}/report.md
+          path: ${{ runner.temp }}/bundle-report
 
   report:
     name: Post bundle report
@@ -184,14 +184,14 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: bundle-report
-          path: ${{ runner.temp }}/report.md
+          path: ${{ runner.temp }}/bundle-report
 
       - name: Post report comment
         if: needs.collect_stats.result == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/report.js --file ${{ runner.temp }}/report.md
+          node scripts/report.js --file ${{ runner.temp }}/bundle-report/report.md
 
       - name: Post failed report comment
         if: needs.collect_stats.result == 'failure'
