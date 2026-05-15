@@ -136,6 +136,10 @@ const report = async (files, {
 
   let firstReleaseTagFound;
 
+  if (base === 'release') {
+    base = releaseTags[0]?.sha;
+  }
+
   const snapshots = await Promise.all(commits.map(async (sha, i) => {
     const releaseTagInfo = commit2Tag[sha];
     const isBase = base && sha === base;
