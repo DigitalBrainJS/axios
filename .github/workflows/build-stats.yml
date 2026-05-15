@@ -178,10 +178,14 @@ jobs:
 
       - name: Post report comment
         if: needs.collect-stats.outputs.report != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node scripts/report.js "${{ needs.collect-stats.outputs.report }}"
 
       - name: Post failed report comment
         if: needs.collect-stats.outputs.report == ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/report.js "⚠️ Bundle report generation failed for this PR ($HEAD_SHA). Please check the workflow run for details."
+          node scripts/report.js "**⚠️ Bundle report generation failed for this PR ($HEAD_SHA). Please check the workflow run for details.**"
