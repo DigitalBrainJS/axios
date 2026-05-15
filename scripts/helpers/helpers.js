@@ -5,6 +5,7 @@ import cp from "child_process";
 import fs from "fs/promises";
 import Handlebars from "handlebars";
 import prettyBytes from "pretty-bytes";
+import crypto from "crypto";
 
 export const parseVersionTag = (tag) => {
   const [, major, minor, patch] = /^v?(\d+)\.(\d+)\.(\d+)/.exec(tag) || [];
@@ -53,6 +54,21 @@ export const writeFileAsync = async (filePath, content) => {
       ArrayBuffer.isView(content) ? Buffer.from(content) :
         JSON.stringify(content, null, 2) :
       String(content));
+}
+
+export const setOutput = async (values) => {
+  if (!process.env.GITHUB_OUTPUT) {
+    return false;
+  }
+
+  const delimiter = crypto.randomUUID();
+
+  await fs.appendFile(
+    process.env.GITHUB_OUTPUT,
+    Object.entries(values).map(([name, value]) => `${name}=<<${delimiter}\n${value}\n${delimiter}`).join('\n')
+  );
+
+  return true;
 }
 
 
