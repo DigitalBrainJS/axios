@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   collect-stats:
+    name: Collect stats
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
@@ -156,7 +157,9 @@ jobs:
       pull-requests: write
 
     env:
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
       BASE_REF: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
     steps:
       - name: Checkout base branch HEAD
@@ -181,4 +184,4 @@ jobs:
       - name: Post failed report comment
         if: needs.collect-stats.outputs.report == ''
         run: |
-          node scripts/report.js "⚠️ Bundle report generation failed for this PR. Please check the workflow run for details."
+          node scripts/report.js "⚠️ Bundle report generation failed for this PR ($HEAD_SHA). Please check the workflow run for details."
