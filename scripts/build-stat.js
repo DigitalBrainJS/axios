@@ -1,7 +1,7 @@
 import minimist from "minimist";
 import {getCommitInfo, getLatestTags, getCommits} from "./helpers/git.js";
 import fs from "fs/promises";
-import {listFiles, readJSONFile, writeFileAsync, Handlebars, barChart, setOutput} from "./helpers/helpers.js";
+import {listFiles, readJSONFile, writeFileAsync, Handlebars, barChart} from "./helpers/helpers.js";
 import path from "path";
 import util from "util";
 import {gzip} from "zlib";
@@ -323,7 +323,7 @@ const clearStats = async (snapshots) => {
       }
 
       if (file) {
-        await fs.writeFile(
+        await writeFileAsync(
           file,
           reportText
         )
