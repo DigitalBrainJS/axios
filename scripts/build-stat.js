@@ -1,7 +1,7 @@
 import minimist from "minimist";
 import {getCommitInfo, getLatestTags, getCommits} from "./helpers/git.js";
 import fs from "fs/promises";
-import {listFiles, readJSONFile, writeFileAsync, Handlebars, barChart} from "./helpers/helpers.js";
+import {listFiles, readJSONFile, writeFileAsync, Handlebars, barChart, setOutput} from "./helpers/helpers.js";
 import path from "path";
 import util from "util";
 import {gzip} from "zlib";
@@ -277,7 +277,7 @@ const clearStats = async (snapshots) => {
 }
 
 (async (args) => {
-  let {skipIfExists = true, releases, base, dir = distDir, template, file} = args;
+  let {skipIfExists = true, releases, base, dir = distDir, template} = args;
   let [action, ...rest] = args._;
 
   console.log(`Stat dir: ${statDir}`);
@@ -311,13 +311,9 @@ const clearStats = async (snapshots) => {
 
       console.log(reportText);
 
-      if (file) {
-        try {
-          await fs.writeFile(file, reportText);
-        } catch (err) {
-          console.error('Failed to write report to file', err);
-        }
-      }
+      await setOutput({
+        report: reportText
+      });
 
       if (process.env.GITHUB_STEP_SUMMARY) {
         try {
