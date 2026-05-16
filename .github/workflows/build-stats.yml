@@ -149,7 +149,7 @@ jobs:
         working-directory: pr
         id: report
         env:
-          STAT_BASE: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
+          STAT_BASE: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || env.BASE_SHA }}
         run: |
           node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$STAT_BASE" --file ${{ runner.temp }}/bundle-report/report.md
 
