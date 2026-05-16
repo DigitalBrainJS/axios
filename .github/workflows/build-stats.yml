@@ -53,26 +53,27 @@ jobs:
           ref: ${{ env.BASE_REF }}
           path: base-head
 
-      - name: Determine merge base
-        working-directory: base-head
-        run: |
-          git fetch origin "$BASE_REF"
-          BASE_SHA=$(git merge-base "$HEAD_SHA" "origin/$BASE_REF")
-          echo "BASE_SHA=$BASE_SHA" >> $GITHUB_ENV
-
-      - name: Info
-        run: |
-          echo "STATS PATH: ${{ env.STATS_PATH }}"
-          echo "BASE: ${{ env.BASE_SHA }}"
-          echo "HEAD: ${{ env.HEAD_SHA }}"
-          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"          
-
       - name: Checkout PR HEAD
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           path: pr
           fetch-depth: 0
+
+      - name: Determine merge base
+        working-directory: pr
+        run: |
+          git fetch origin "$BASE_REF"
+          BASE_SHA=$(git merge-base HEAD "origin/$BASE_REF")
+          echo "BASE_SHA=$BASE_SHA" >> $GITHUB_ENV
+          echo "Merge base: $BASE_SHA"    
+
+      - name: Info
+        run: |
+          echo "STATS PATH: ${{ env.STATS_PATH }}"
+          echo "BASE: ${{ env.BASE_SHA }}"
+          echo "HEAD: ${{ env.HEAD_SHA }}"
+          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"               
 
       - name: Install BASE HEAD deps
         working-directory: base-head
