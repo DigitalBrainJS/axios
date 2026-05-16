@@ -21,10 +21,8 @@ jobs:
 
     env:
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
-      BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
       BASE_REF: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      BASE_REF_ARG: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
 
     steps:
       - name: Set stats path
@@ -33,13 +31,6 @@ jobs:
 
       - name: Ensure axios-stats dir exists
         run: mkdir -p ${{ env.STATS_PATH }}
-
-      - name: Info
-        run: |
-          echo "STATS PATH: ${{ env.STATS_PATH }}"
-          echo "BASE: ${{ env.BASE_SHA }}"
-          echo "HEAD: ${{ env.HEAD_SHA }}"
-          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"        
 
       # Restore cache for all commits (BASE, HEAD) to speed up stats collection
       - name: Restore stats cache
@@ -61,6 +52,19 @@ jobs:
         with:
           ref: ${{ env.BASE_REF }}
           path: base-head
+
+      - name: Determine merge base
+        working-directory: base-head
+        run: |
+          BASE_SHA=$(git merge-base "$HEAD_SHA" "origin/$BASE_REF")
+          echo "BASE_SHA=$BASE_SHA" >> $GITHUB_ENV
+
+      - name: Info
+        run: |
+          echo "STATS PATH: ${{ env.STATS_PATH }}"
+          echo "BASE: ${{ env.BASE_SHA }}"
+          echo "HEAD: ${{ env.HEAD_SHA }}"
+          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"          
 
       - name: Checkout PR HEAD
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -142,8 +146,10 @@ jobs:
       - name: Generate report
         working-directory: pr
         id: report
+        env:
+          STAT_BASE: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || github.event.workflow_run.pull_requests[0].base.sha }}
         run: |
-          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$BASE_REF_ARG" --file ${{ runner.temp }}/bundle-report/report.md
+          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$STAT_BASE" --file ${{ runner.temp }}/bundle-report/report.md
 
       - name: Upload report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
