@@ -190,10 +190,14 @@ const report = async (files, {
     }
 
     if (snapshot) {
-      snapshot.label = !i ? 'HEAD' : (isBase ? 'BASE' : '');
+      return {
+        ...snapshot,
+        label: !i ? 'HEAD' : (isBase ? 'BASE' : ''),
+        parentCommit: commits[i + 1]
+      }
     }
 
-    return snapshot;
+    return null;
   }));
 
   snapshots.forEach((snapshot) => {
@@ -224,16 +228,21 @@ const report = async (files, {
       }
     }).filter(Boolean).map((snapshot, i, snapshots) => {
       const next = snapshots[i + 1];
-      const diff = next ? snapshot.size - next.size : null;
-      const diffGZip = next ? snapshot.gzip - next.gzip : null;
 
-      return {
-        ...snapshot,
-        diff: {
-          size: diff,
-          gzip: diffGZip
+      if (snapshot.parentCommit && snapshot.parentCommit === next?.sha) {
+        const diff = next ? snapshot.size - next.size : null;
+        const diffGZip = next ? snapshot.gzip - next.gzip : null;
+
+        return {
+          ...snapshot,
+          diff: {
+            size: diff,
+            gzip: diffGZip
+          }
         }
       }
+
+      return snapshot;
     }).slice(0, limit);
 
     if (base === 'release') {
