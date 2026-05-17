@@ -94,7 +94,7 @@ const getStatsFromNPM = async (version) => {
 }
 
 
-const report = async (files, {
+const generateReport = async (files, {
   releases = 1,
   base,
   clear = true,
@@ -110,7 +110,7 @@ const report = async (files, {
 
 
   const commits = await getCommits(from);
-  const snapshotsMap = {};
+  const snapshotFilesMap = {};
   const commit2Tag = {};
 
   releaseTags.forEach(tagData => {
@@ -118,7 +118,6 @@ const report = async (files, {
   });
 
   const snapshotFiles = await listFiles(statDir);
-  const snapshotFilesMap = {};
 
   if (snapshotFiles) {
     snapshotFiles.forEach(file => {
@@ -136,7 +135,9 @@ const report = async (files, {
 
   let baseCommitFound;
 
-  const snapshots = await Promise.all(commits.map(async (sha, i) => {
+  const snapshots = {};
+
+  await Promise.all(commits.map(async (sha, i) => {
     const releaseTagInfo = commit2Tag[sha];
 
     if (!base && releaseTagInfo) {
@@ -190,54 +191,52 @@ const report = async (files, {
     }
 
     if (snapshot) {
-      return {
+      snapshots[sha] = {
         ...snapshot,
         label: !i ? 'HEAD' : (isBase ? 'BASE' : ''),
-        parentCommit: commits[i + 1]
+        parentCommit: commits[i + 1] || null
       }
     }
-
-    return null;
   }));
 
-  snapshots.forEach((snapshot) => {
-    if(snapshot) {
-      snapshotsMap[snapshot.sha] = snapshot;
-    }
-  });
-
   if (clear) {
-    await clearStats(snapshotsMap);
+    await clearStats(snapshots);
   }
 
   const stats = {};
 
-  files.forEach(file => {
-    const stat = Object.values(snapshotsMap).map((snapshot) => {
-      const stat = snapshot?.stats[file];
+  files
+    .forEach(file => {
+      const stat = commits.map((sha) => {
+        const snapshot = snapshots[sha];
 
-      if (stat) {
-        return {
-          sha: snapshot.sha,
-          short: snapshot.short,
-          tag: snapshot.tag,
-          date: snapshot.date,
-          label: snapshot.label,
-          ...stat
+        if (!snapshot) {
+          return null;
         }
-      }
-    }).filter(Boolean).map((snapshot, i, snapshots) => {
+
+        const stat = snapshot?.stats[file];
+
+        if (stat) {
+          return {
+            sha: snapshot.sha,
+            short: snapshot.short,
+            tag: snapshot.tag,
+            date: snapshot.date,
+            label: snapshot.label,
+            parentCommit: snapshot.parentCommit,
+            ...stat
+          }
+        }
+    })
+    .filter(Boolean).map((snapshot, i, snapshots) => {
       const next = snapshots[i + 1];
 
       if (snapshot.parentCommit && snapshot.parentCommit === next?.sha) {
-        const diff = next ? snapshot.size - next.size : null;
-        const diffGZip = next ? snapshot.gzip - next.gzip : null;
-
         return {
           ...snapshot,
           diff: {
-            size: diff,
-            gzip: diffGZip
+            size: snapshot.size - next.size,
+            gzip: snapshot.gzip - next.gzip
           }
         }
       }
@@ -268,8 +267,33 @@ const report = async (files, {
 
   return {
     stats,
-    snapshots: snapshotsMap
+    snapshots
   };
+}
+
+const renderReport = async (report, options = {
+  impact: [0, 1, 100, 500, 1024]
+}) => {
+  const templateContent = await fs.readFile(
+    path.join(import.meta.dirname, './templates/build-stat.hbs')
+  );
+
+  Object.values(report.stats).forEach((stat) => {
+    const impact = options.impact || [];
+    let gzipImpact = impact.length;
+
+    for (let i = 0; i < impact.length; i++) {
+      if (report.stats?.diff?.gzip < impact[i]) {
+        gzipImpact = i;
+      }
+    }
+
+    stat.impact = {
+      gzip: gzipImpact
+    }
+  });
+
+  return Handlebars.compile(String(templateContent))(report);
 }
 
 const clearStats = async (snapshots) => {
@@ -314,16 +338,12 @@ const clearStats = async (snapshots) => {
     case 'report': {
       const [...files] = rest;
 
-      const templateContent = await fs.readFile(
-        template || path.join(import.meta.dirname, './templates/build-stat.hbs')
-      );
-
-      const stats = await report(files, {
+      const report = await generateReport(files, {
         releases,
         base
       });
 
-      const reportText = Handlebars.compile(String(templateContent))(stats);
+      const reportText = await renderReport(report);
 
       console.log(reportText);
 
