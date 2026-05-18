@@ -9,11 +9,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
-  bundle_size:
-    name: Bundle size report
+  collect_stats:
+    name: Collect stats
+
     runs-on: ubuntu-latest
 
     env:
@@ -28,48 +28,9 @@ jobs:
           echo "STATS_PATH=${{ runner.temp }}/axios-stats" >> $GITHUB_ENV
 
       - name: Ensure axios-stats dir exists
-        run: mkdir -p "$STATS_PATH"
+        run: mkdir -p ${{ env.STATS_PATH }}
 
-      #
-      # Checkout base branch
-      #
-      - name: Checkout base branch HEAD
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ env.BASE_REF }}
-          path: base-head
-          fetch-depth: 0
-
-      #
-      # Checkout PR HEAD
-      #
-      - name: Checkout PR HEAD
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          path: pr
-          fetch-depth: 0
-
-      #
-      # Determine merge base
-      #
-      - name: Determine merge base
-        working-directory: pr
-        run: |
-          git remote add upstream https://github.com/${{ github.repository }}.git
-
-          git fetch upstream "$BASE_REF"
-
-          MERGE_BASE=$(git merge-base HEAD "upstream/$BASE_REF")
-
-          echo "MERGE_BASE=$MERGE_BASE" >> $GITHUB_ENV
-
-          echo "Merge base: $MERGE_BASE"
-
-      #
-      # Restore cache
-      #
+      # Restore cache for all commits (BASE, HEAD) to speed up stats collection
       - name: Restore stats cache
         id: cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -80,6 +41,42 @@ jobs:
             stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-
             stats-v1-${{ github.repository }}-
 
+      - name: Cache hit info
+        run: |
+          echo "cache-hit=${{ steps.cache.outputs.cache-hit }} for ${{ env.HEAD_SHA }}" 
+
+      - name: Checkout base branch HEAD
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: base-head
+
+      - name: Checkout PR HEAD
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: pr
+          fetch-depth: 0
+
+      - name: Determine merge base
+        working-directory: pr
+        run: |
+          git fetch origin "$BASE_REF"
+          BASE_SHA=$(git merge-base HEAD "origin/$BASE_REF")
+          echo "BASE_SHA=$BASE_SHA" >> $GITHUB_ENV
+          echo "Merge base: $BASE_SHA"    
+
+      - name: Info
+        run: |
+          echo "STATS PATH: ${{ env.STATS_PATH }}"
+          echo "BASE: ${{ env.BASE_SHA }}"
+          echo "HEAD: ${{ env.HEAD_SHA }}"
+          echo "key: stats-v1-${{ github.repository }}-${{ env.PR_NUMBER }}-${{ env.HEAD_SHA }}"               
+
+      - name: Install BASE HEAD deps
+        working-directory: base-head
+        run: npm ci --ignore-scripts
+
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -89,23 +86,17 @@ jobs:
             base-head/package-lock.json
             pr/package-lock.json
 
-      - name: Install BASE HEAD deps
-        working-directory: base-head
-        run: npm ci --ignore-scripts
-
-      #
-      # BASE snapshot
-      #
+      # BASE snapshot check and collection
       - name: Check BASE snapshot
         id: base_snapshot
         run: |
-          FILE="$STATS_PATH/$MERGE_BASE.json"
-
+          FILE="$STATS_PATH/$BASE_SHA.json"
+          
           if [ -f "$FILE" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-          fi
+          fi   
 
       - name: Checkout to BASE
         if: steps.base_snapshot.outputs.exists != 'true'
@@ -113,7 +104,7 @@ jobs:
         run: |
           git reset --hard
           git clean -fd
-          git checkout "$MERGE_BASE"
+          git checkout "$BASE_SHA"
 
       - name: Install BASE dependencies
         if: steps.base_snapshot.outputs.exists != 'true'
@@ -130,10 +121,8 @@ jobs:
         working-directory: pr
         run: |
           node ../base-head/scripts/build-stat.js snapshot -s
+      #############################################
 
-      #
-      # HEAD snapshot
-      #
       - name: Checkout HEAD
         working-directory: pr
         run: |
@@ -152,38 +141,68 @@ jobs:
       - name: Collect HEAD stats
         working-directory: pr
         run: |
-          node ../base-head/scripts/build-stat.js snapshot -s
+          node ../base-head/scripts/build-stat.js snapshot -s   
 
-      #
-      # Generate report
-      #
       - name: Generate report
         working-directory: pr
+        id: report
+        env:
+          STAT_BASE: ${{ github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'release' && 'release' || env.BASE_SHA }}
         run: |
-          node ../base-head/scripts/build-stat.js report \
-            dist/esm/axios.min.js \
-            dist/axios.min.js \
-            --releases 20 \
-            --base "$MERGE_BASE" \
-            --file "${{ runner.temp }}/report.md"
+          node ../base-head/scripts/build-stat.js report dist/esm/axios.min.js dist/axios.min.js --releases 20 --base "$STAT_BASE" --file ${{ runner.temp }}/bundle-report/report.md
 
-      #
-      # Post PR comment
-      #
+      - name: Upload report artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bundle-report
+          path: ${{ runner.temp }}/bundle-report
+
+  report:
+    name: Post bundle report
+    needs: collect_stats
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    env:
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      BASE_REF: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Checkout base branch HEAD
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.BASE_REF }}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install BASE HEAD deps
+        run: npm ci --ignore-scripts
+
+      - name: Download report artifact
+        if: needs.collect_stats.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bundle-report
+          path: ${{ runner.temp }}/bundle-report
+
       - name: Post report comment
+        if: needs.collect_stats.result == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: base-head
         run: |
-          node scripts/report.js --file "${{ runner.temp }}/report.md"
+          node scripts/report.js --file ${{ runner.temp }}/bundle-report/report.md
 
-      #
-      # Failure comment
-      #
       - name: Post failed report comment
-        if: failure()
+        if: needs.collect_stats.result == 'failure'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: base-head
         run: |
-          node scripts/report.js "**⚠️ Bundle report generation failed for this PR ($HEAD_SHA). Please check the workflow logs.**"
+          node scripts/report.js "**⚠️ Bundle report generation failed for this PR ($HEAD_SHA). Please check the workflow run for details.**"
