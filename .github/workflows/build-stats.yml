@@ -1,10 +1,11 @@
 name: Bundle size analyzer
 
 on:
-  workflow_run:
-    workflows: ["Continuous integration"]
+  pull_request:
     types:
-      - completed
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: read
@@ -12,17 +13,14 @@ permissions:
 jobs:
   collect_stats:
     name: Collect stats
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0] != null
 
     runs-on: ubuntu-latest
 
     env:
-      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
-      BASE_REF: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
     steps:
       - name: Set stats path
