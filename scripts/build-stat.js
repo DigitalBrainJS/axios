@@ -38,7 +38,7 @@ const getFileStats = async (filename) => {
 }
 
 const snapshot = async (dir = distDir, skipIfExists = true) => {
-  const {sha, tag, short, date} = await getCommitInfo();
+  const {sha, tags, short, date} = await getCommitInfo();
 
   if (skipIfExists) {
     try {
@@ -55,7 +55,7 @@ const snapshot = async (dir = distDir, skipIfExists = true) => {
 
   const stat = {
     sha,
-    tag,
+    tag: tags[0] || null,
     date,
     short,
     stats: {}
@@ -93,7 +93,6 @@ const getStatsFromNPM = async (version) => {
   }
 }
 
-
 const generateReport = async (files, {
   releases = 1,
   base,
@@ -107,7 +106,6 @@ const generateReport = async (files, {
 
   console.log('Latest tags:\n', releaseTags);
   console.log(`Getting commits from ${from} to HEAD...`);
-
 
   const commits = await getCommits(from);
   const snapshotFilesMap = {};
@@ -160,15 +158,12 @@ const generateReport = async (files, {
     let snapshot = isSnapshotFileExists && (await readJSONFile(path.join(statDir, `${sha}.json`)));
 
     if (!snapshot) {
-
-
       console.log(`${i}) No snapshot found for ${sha}`);
 
       if (releaseTagInfo && pullCounter < maxNPMPulls) {
         pullCounter++;
 
         console.log(` Trying to pull [${releaseTagInfo.tag}] from NPM`);
-
 
         const stats = await getStatsFromNPM(releaseTagInfo.tag);
 
@@ -227,43 +222,43 @@ const generateReport = async (files, {
             ...stat
           }
         }
-    })
-    .filter(Boolean).map((snapshot, i, snapshots) => {
-      const next = snapshots[i + 1];
+      })
+        .filter(Boolean).map((snapshot, i, snapshots) => {
+          const next = snapshots[i + 1];
 
-      if (snapshot.parentCommit && snapshot.parentCommit === next?.sha) {
-        return {
-          ...snapshot,
-          diff: {
-            size: snapshot.size - next.size,
-            gzip: snapshot.gzip - next.gzip
+          if (snapshot.parentCommit && snapshot.parentCommit === next?.sha) {
+            return {
+              ...snapshot,
+              diff: {
+                size: snapshot.size - next.size,
+                gzip: snapshot.gzip - next.gzip
+              }
+            }
           }
-        }
+
+          return snapshot;
+        }).slice(0, limit);
+
+      if (base === 'release') {
+        base = releaseTags[0]?.sha;
       }
 
-      return snapshot;
-    }).slice(0, limit);
+      const baseStat = base && stat.find(({sha}) => sha === base) || stat[1];
 
-    if (base === 'release') {
-      base = releaseTags[0]?.sha;
-    }
-
-    const baseStat = base && stat.find(({sha}) => sha === base) || stat[1];
-
-    stats[file] = {
-      stat,
-      diff: {
-        size: baseStat ? stat[0].size - baseStat.size : null,
-        gzip: baseStat ? stat[0].gzip - baseStat.gzip : null,
-      },
-      graph: barChart(stat.map(({tag, short, label, sha, gzip}) => {
-        return {
-          label: label || tag || short || sha,
-          value: gzip
-        };
-      }))
-    };
-  });
+      stats[file] = {
+        stat,
+        diff: {
+          size: baseStat ? stat[0].size - baseStat.size : null,
+          gzip: baseStat ? stat[0].gzip - baseStat.gzip : null,
+        },
+        graph: barChart(stat.map(({tag, short, label, sha, gzip}) => {
+          return {
+            label: label || tag || short || sha,
+            value: gzip
+          };
+        }))
+      };
+    });
 
   return {
     stats,
@@ -272,7 +267,7 @@ const generateReport = async (files, {
 }
 
 const renderReport = async (report, options = {
-  impact: [0, 1, 100, 500, 1024]
+  impact: [0, 1, 100, 500, 1024, Infinity]
 }) => {
   const templateContent = await fs.readFile(
     path.join(import.meta.dirname, './templates/build-stat.hbs')
@@ -280,11 +275,12 @@ const renderReport = async (report, options = {
 
   Object.values(report.stats).forEach((stat) => {
     const impact = options.impact || [];
-    let gzipImpact = impact.length;
+    let gzipImpact = 0;
 
     for (let i = 0; i < impact.length; i++) {
-      if (report.stats?.diff?.gzip < impact[i]) {
-        gzipImpact = i;
+      if (i + 1 === impact.length || stat.diff?.gzip < impact[i]) {
+        gzipImpact = i + 1;
+        break;
       }
     }
 
