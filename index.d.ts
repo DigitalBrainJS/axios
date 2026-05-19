@@ -410,6 +410,7 @@ export interface AxiosRequestConfig<D = any> {
   proxy?: AxiosProxyConfig | false;
   cancelToken?: CancelToken | undefined;
   decompress?: boolean;
+  advertiseZstd?: boolean;
   transitional?: TransitionalOptions;
   signal?: GenericAbortSignal;
   insecureHTTPParser?: boolean;

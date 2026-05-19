@@ -512,6 +512,7 @@ declare namespace axios {
     proxy?: AxiosProxyConfig | false;
     cancelToken?: CancelToken | undefined;
     decompress?: boolean;
+    advertiseZstd?: boolean;
     transitional?: TransitionalOptions;
     signal?: GenericAbortSignal;
     insecureHTTPParser?: boolean;
