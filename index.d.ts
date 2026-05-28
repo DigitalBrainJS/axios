@@ -49,6 +49,7 @@ export class AxiosHeaders {
 
   toJSON(asStrings: true): Record<string, string>;
   toJSON(asStrings?: false): Record<string, string | string[]>;
+  toJSON(asStrings?: boolean): Record<string, string | string[]>;
 
   static from(thing?: AxiosHeaders | RawAxiosHeaders | string): AxiosHeaders;
 
