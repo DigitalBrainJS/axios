@@ -66,7 +66,8 @@ declare class AxiosHeaders {
     ...targets: Array<AxiosHeaders | axios.RawAxiosHeaders | string | undefined | null>
   ): AxiosHeaders;
 
-  toJSON(asStrings?: boolean): axios.RawAxiosHeaders;
+  toJSON(asStrings: true): Record<string, string>;
+  toJSON(asStrings?: false): Record<string, string | string[]>;
 
   static from(thing?: AxiosHeaders | axios.RawAxiosHeaders | string): AxiosHeaders;
 

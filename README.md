@@ -2161,7 +2161,8 @@ Returns a new `AxiosHeaders` instance.
 ### AxiosHeaders#toJSON(asStrings?)
 
 ```
-toJSON(asStrings?: boolean): RawAxiosHeaders;
+toJSON(asStrings: true): Record<string, string>;
+toJSON(asStrings?: false): Record<string, string | string[]>;
 ```
 
 Resolve all internal header values into a new null prototype object.
